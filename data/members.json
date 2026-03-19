@@ -1,0 +1,26 @@
+{
+  "event": {
+    "name": "Qurbani Meat Distribution",
+    "date": "2026-03-18",
+    "location": "Masjid Main Hall",
+    "type": "meat"
+  },
+  "members": [
+    "FG/001/1/O/G",
+    "FG/002/1/R/G",
+    "FG/003/1/O/G",
+    "FG/004/1/O/G",
+    "FG/005/1/R/G",
+    "FG/006/1/R/G",
+    "FG/007/1/O/G",
+    "FG/008/1/R/G",
+    "FG/009/1/O/G",
+    "FG/010/1/O/G"
+  ],
+  "contributors": [
+    "FG/001/1/O/G",
+    "FG/002/1/R/G",
+    "FG/003/1/O/G",
+    "FG/004/1/O/G"
+  ]
+}
