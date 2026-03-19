@@ -947,14 +947,17 @@
 //  App State
 // ──────────────────────────────────────────────
 let membersData     = { members: [], contributors: [] };
-let scanHistory     = JSON.parse(sessionStorage.getItem('scanHistory')    || '[]');
-let distributedSet  = new Set(JSON.parse(sessionStorage.getItem('distributed') || '[]'));
+let scanHistory     = JSON.parse(sessionStorage.getItem('scanHistory') || '[]');
 let eventType       = localStorage.getItem('eventType') || 'meat';
+
+function distributedKey() { return 'distributed_' + eventType; }
+let distributedSet  = new Set(JSON.parse(sessionStorage.getItem(distributedKey()) || '[]'));
 let allowRescan     = localStorage.getItem('allowRescan') === 'true';
 let contributorBonus = parseInt(localStorage.getItem('contributorBonus') || '1');
 
 let videoStream   = null;
 let scanActive    = false;
+let popupOpen     = false;
 let lastScanned   = '';
 let lastScannedTs = 0;
 let facingMode    = 'environment';
@@ -1002,6 +1005,9 @@ function applySettings() {
 function setEventType(type, save = true) {
   eventType = type;
   if (save) localStorage.setItem('eventType', type);
+
+  // Reload the distributed set for this event type
+  distributedSet = new Set(JSON.parse(sessionStorage.getItem(distributedKey()) || '[]'));
 
   const meatBtn     = document.getElementById('btn-type-meat');
   const porridgeBtn = document.getElementById('btn-type-porridge');
@@ -1109,7 +1115,7 @@ function scanFrame() {
 
   if (code && code.data) {
     const now = Date.now();
-    if (code.data !== lastScanned || now - lastScannedTs > 3000) {
+    if (!popupOpen && (code.data !== lastScanned || now - lastScannedTs > 3000)) {
       lastScanned   = code.data;
       lastScannedTs = now;
       handleLookup(code.data.trim().toUpperCase());
@@ -1141,12 +1147,11 @@ function handleLookup(memberNo) {
 
   const parcels = isContributor ? 1 + contributorBonus : 1;
   showResult(memberNo, isContributor, parcels);
-  markDistributed(memberNo, isContributor, parcels);
 }
 
 function markDistributed(memberNo, isContributor, parcels) {
   distributedSet.add(memberNo);
-  sessionStorage.setItem('distributed', JSON.stringify([...distributedSet]));
+  sessionStorage.setItem(distributedKey(), JSON.stringify([...distributedSet]));
 
   const entry = {
     memberNo,
@@ -1189,6 +1194,7 @@ function showResult(memberNo, isContributor, parcels) {
        </div>`
     : '';
 
+  popupOpen = true;
   Swal.fire({
     background: bgColor,
     showConfirmButton: true,
@@ -1212,14 +1218,11 @@ function showResult(memberNo, isContributor, parcels) {
       </div>
     `
   }).then(result => {
-    if (!result.isConfirmed) {
-      // Remove from distributed if cancelled
-      distributedSet.delete(memberNo);
-      sessionStorage.setItem('distributed', JSON.stringify([...distributedSet]));
-      scanHistory.shift();
-      sessionStorage.setItem('scanHistory', JSON.stringify(scanHistory));
-      renderHistory();
-      updateStats();
+    popupOpen = false;
+    lastScanned   = '';
+    lastScannedTs = 0;
+    if (result.isConfirmed) {
+      markDistributed(memberNo, isContributor, parcels);
     }
   });
 }
@@ -1246,7 +1249,8 @@ function showNotFound(memberNo) {
            <div style="font-size:0.82rem;color:#666;">This membership number is not registered. Please verify the card.</div>`,
     confirmButtonColor: '#2a9d5c',
     confirmButtonText: 'OK'
-  });
+  }).then(() => { popupOpen = false; lastScanned = ''; lastScannedTs = 0; });
+  popupOpen = true;
 }
 
 function showAlreadyCollected(memberNo, isContributor) {
@@ -1258,7 +1262,8 @@ function showAlreadyCollected(memberNo, isContributor) {
            <em>Enable "Allow Re-scan" in settings to override.</em></div>`,
     confirmButtonColor: '#2a9d5c',
     confirmButtonText: 'OK'
-  });
+  }).then(() => { popupOpen = false; lastScanned = ''; lastScannedTs = 0; });
+  popupOpen = true;
 }
 
 // ──────────────────────────────────────────────
@@ -1368,7 +1373,8 @@ function resetAllData() {
       scanHistory = [];
       distributedSet = new Set();
       sessionStorage.removeItem('scanHistory');
-      sessionStorage.removeItem('distributed');
+      sessionStorage.removeItem('distributed_meat');
+      sessionStorage.removeItem('distributed_porridge');
       renderHistory();
       updateStats();
       closeSettings();
