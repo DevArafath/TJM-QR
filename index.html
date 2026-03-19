@@ -916,7 +916,17 @@
 
   <div class="setting-row">
     <div>
-      <div class="setting-label">Contributor Bonus Parcels</div>
+      <div class="setting-label">Contributor Bonus</div>
+      <div class="setting-desc">Give extra parcels to contributors</div>
+    </div>
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" id="toggle-contributor-bonus" style="width:44px;height:22px;" />
+    </div>
+  </div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">Bonus Parcel Count</div>
       <div class="setting-desc">How many extra parcels contributors receive</div>
     </div>
     <select id="contributor-bonus" style="border:1px solid #ddd;border-radius:8px;padding:4px 8px;font-family:Outfit,sans-serif;font-size:0.82rem;">
@@ -924,6 +934,16 @@
       <option value="2">+2 (Total: 3)</option>
       <option value="3">+3 (Total: 4)</option>
     </select>
+  </div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">Export to Excel</div>
+      <div class="setting-desc">Download full scan history as .xlsx</div>
+    </div>
+    <button class="btn-manual-lookup" style="border-radius:8px;font-size:0.78rem;padding:7px 12px;background:#1a6b43;" onclick="exportToExcel()">
+      <i class="fa-solid fa-file-excel"></i> Export
+    </button>
   </div>
 
   <div class="setting-row">
@@ -940,7 +960,9 @@
 <!-- Hidden audio for beep -->
 <audio id="beep-ok"  src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA..." preload="auto"></audio>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
 // ──────────────────────────────────────────────
@@ -952,8 +974,9 @@ let eventType       = localStorage.getItem('eventType') || 'meat';
 
 function distributedKey() { return 'distributed_' + eventType; }
 let distributedSet  = new Set(JSON.parse(sessionStorage.getItem(distributedKey()) || '[]'));
-let allowRescan     = localStorage.getItem('allowRescan') === 'true';
-let contributorBonus = parseInt(localStorage.getItem('contributorBonus') || '1');
+let allowRescan            = localStorage.getItem('allowRescan') === 'true';
+let contributorBonusEnabled = localStorage.getItem('contributorBonusEnabled') !== 'false';
+let contributorBonus       = parseInt(localStorage.getItem('contributorBonus') || '1');
 
 let videoStream   = null;
 let scanActive    = false;
@@ -998,7 +1021,9 @@ async function loadData() {
 // ──────────────────────────────────────────────
 function applySettings() {
   document.getElementById('toggle-rescan').checked = allowRescan;
+  document.getElementById('toggle-contributor-bonus').checked = contributorBonusEnabled;
   document.getElementById('contributor-bonus').value = contributorBonus;
+  document.getElementById('contributor-bonus').disabled = !contributorBonusEnabled;
   setEventType(eventType, false);
 }
 
@@ -1032,6 +1057,12 @@ function setEventType(type, save = true) {
 document.getElementById('toggle-rescan').addEventListener('change', e => {
   allowRescan = e.target.checked;
   localStorage.setItem('allowRescan', allowRescan);
+});
+
+document.getElementById('toggle-contributor-bonus').addEventListener('change', e => {
+  contributorBonusEnabled = e.target.checked;
+  localStorage.setItem('contributorBonusEnabled', contributorBonusEnabled);
+  document.getElementById('contributor-bonus').disabled = !contributorBonusEnabled;
 });
 
 document.getElementById('contributor-bonus').addEventListener('change', e => {
@@ -1145,7 +1176,7 @@ function handleLookup(memberNo) {
     return;
   }
 
-  const parcels = isContributor ? 1 + contributorBonus : 1;
+  const parcels = (isContributor && contributorBonusEnabled) ? 1 + contributorBonus : 1;
   showResult(memberNo, isContributor, parcels);
 }
 
@@ -1359,7 +1390,59 @@ document.getElementById('btn-clear-history').addEventListener('click', () => {
   });
 });
 
-function resetAllData() {
+function exportToExcel() {
+  if (!scanHistory.length) {
+    Swal.fire({ icon: 'info', title: 'Nothing to Export', text: 'No scan history found.', confirmButtonColor: '#1a6b43' });
+    return;
+  }
+
+  // Build rows
+  const rows = scanHistory.map((e, i) => ({
+    '#':              scanHistory.length - i,
+    'Membership No':  e.memberNo,
+    'Type':           e.isContributor ? 'Contributor' : 'Member',
+    'Status':         e.status === 'given' ? 'Distributed' : 'Rejected',
+    'Parcels':        e.status === 'given' ? e.parcels : 0,
+    'Distribution':   e.eventType === 'meat' ? 'Meat' : 'Porridge',
+    'Time':           e.time,
+    'Date':           new Date().toLocaleDateString('en-GB')
+  }));
+
+  // Summary sheet rows
+  const givenEntries  = scanHistory.filter(e => e.status === 'given');
+  const totalParcels  = givenEntries.reduce((s, e) => s + e.parcels, 0);
+  const summary = [
+    { 'Summary':          'Event',           'Value': membersData.event?.name || 'Distribution' },
+    { 'Summary':          'Date',            'Value': new Date().toLocaleDateString('en-GB') },
+    { 'Summary':          'Type',            'Value': eventType === 'meat' ? 'Meat' : 'Porridge' },
+    { 'Summary':          'Total Scanned',   'Value': givenEntries.length },
+    { 'Summary':          'Contributors',    'Value': givenEntries.filter(e => e.isContributor).length },
+    { 'Summary':          'Total Parcels',   'Value': totalParcels },
+    { 'Summary':          'Rejected Scans',  'Value': scanHistory.filter(e => e.status === 'rejected').length },
+    { 'Summary':          'Bonus Active',    'Value': contributorBonusEnabled ? `Yes (+${contributorBonus})` : 'No' },
+  ];
+
+  const wb = XLSX.utils.book_new();
+
+  // Scan log sheet
+  const ws1 = XLSX.utils.json_to_sheet(rows);
+  ws1['!cols'] = [
+    { wch: 5 }, { wch: 20 }, { wch: 14 }, { wch: 12 },
+    { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 12 }
+  ];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Scan Log');
+
+  // Summary sheet
+  const ws2 = XLSX.utils.json_to_sheet(summary);
+  ws2['!cols'] = [{ wch: 20 }, { wch: 30 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Summary');
+
+  const filename = `distribution_${eventType}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+  closeSettings();
+}
+
+
   Swal.fire({
     title: 'Reset All Data?',
     html: 'This will clear <strong>all scan history</strong> and <strong>distributed records</strong>. Members will be able to collect again.',
