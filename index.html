@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Qurbani Distribution Scanner</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- jsQR -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  <style>
+    :root {
+      --green-dark:   #0d4a2f;
+      --green-mid:    #1a6b43;
+      --green-light:  #2a9d5c;
+      --gold:         #d4a017;
+      --gold-light:   #f0c040;
+      --cream:        #fdf6e3;
+      --cream-dark:   #f3e8c8;
+      --text-main:    #1a2e1a;
+      --text-muted:   #5a7a5a;
+      --red-soft:     #c0392b;
+      --contributor-bg: #fff8e1;
+      --contributor-border: #d4a017;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--green-dark);
+      min-height: 100vh;
+      color: var(--text-main);
+      overflow-x: hidden;
+    }
+
+    /* ── Geometric pattern overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 30px,
+          rgba(255,255,255,0.03) 30px,
+          rgba(255,255,255,0.03) 31px
+        ),
+        repeating-linear-gradient(
+          -45deg,
+          transparent,
+          transparent 30px,
+          rgba(255,255,255,0.03) 30px,
+          rgba(255,255,255,0.03) 31px
+        );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 0 80px;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+      border-bottom: 3px solid var(--gold);
+      padding: 18px 20px 14px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+
+    .header-arabic {
+      font-family: 'Scheherazade New', serif;
+      color: var(--gold-light);
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+
+    .header-title {
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1.2;
+    }
+
+    .header-subtitle {
+      color: rgba(255,255,255,0.65);
+      font-size: 0.72rem;
+      font-weight: 300;
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    .header-event-badge {
+      display: inline-block;
+      background: rgba(212,160,23,0.2);
+      border: 1px solid var(--gold);
+      color: var(--gold-light);
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid rgba(212,160,23,0.3);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-num {
+      color: var(--gold-light);
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-label {
+      color: rgba(255,255,255,0.55);
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    .stat-divider {
+      width: 1px;
+      height: 36px;
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* ── Main card ── */
+    .main-card {
+      background: var(--cream);
+      margin: 16px 12px 0;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .scanner-section {
+      padding: 18px 18px 0;
+    }
+
+    .section-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* ── QR Viewport ── */
+    .qr-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      background: #111;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 2px solid var(--green-light);
+    }
+
+    #qr-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #qr-canvas { display: none; }
+
+    .qr-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .scan-frame {
+      width: 62%;
+      height: 62%;
+      position: relative;
+    }
+
+    .scan-frame::before,
+    .scan-frame::after {
+      content: '';
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-color: var(--gold-light);
+      border-style: solid;
+    }
+
+    .scan-frame::before {
+      top: 0; left: 0;
+      border-width: 3px 0 0 3px;
+      border-radius: 4px 0 0 0;
+    }
+
+    .scan-frame::after {
+      bottom: 0; right: 0;
+      border-width: 0 3px 3px 0;
+      border-radius: 0 0 4px 0;
+    }
+
+    .scan-frame-extra::before,
+    .scan-frame-extra::after {
+      content: '';
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-color: var(--gold-light);
+      border-style: solid;
+    }
+
+    .scan-frame-extra::before {
+      top: 0; right: 0;
+      border-width: 3px 3px 0 0;
+      border-radius: 0 4px 0 0;
+    }
+
+    .scan-frame-extra::after {
+      bottom: 0; left: 0;
+      border-width: 0 0 3px 3px;
+      border-radius: 0 0 0 4px;
+    }
+
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 8%;
+      width: 84%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--gold-light), transparent);
+      animation: scan-sweep 2s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--gold);
+    }
+
+    @keyframes scan-sweep {
+      0%   { top: 0%;   opacity: 1; }
+      50%  { top: 96%;  opacity: 1; }
+      100% { top: 0%;   opacity: 1; }
+    }
+
+    .camera-placeholder {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #0d2e1a, #1a4a30);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .camera-placeholder i {
+      font-size: 3rem;
+      color: var(--green-light);
+    }
+
+    .camera-placeholder p {
+      font-size: 0.8rem;
+      margin: 0;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    /* ── Camera controls ── */
+    .camera-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 0 0 16px;
+    }
+
+    .btn-scan-start {
+      flex: 1;
+      background: linear-gradient(135deg, var(--green-mid), var(--green-light));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 3px 10px rgba(26,107,67,0.4);
+    }
+
+    .btn-scan-start:active { transform: scale(0.97); }
+
+    .btn-scan-stop {
+      flex: 1;
+      background: linear-gradient(135deg, #7f1d1d, #b91c1c);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-flip-cam {
+      background: rgba(0,0,0,0.08);
+      border: 1px solid rgba(0,0,0,0.12);
+      color: var(--text-muted);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    /* ── Manual input ── */
+    .manual-section {
+      padding: 0 18px 18px;
+      border-top: 1px solid var(--cream-dark);
+      padding-top: 14px;
+    }
+
+    .manual-input-wrap {
+      display: flex;
+      gap: 8px;
+    }
+
+    .manual-input {
+      flex: 1;
+      border: 2px solid var(--cream-dark);
+      border-radius: 10px;
+      padding: 9px 13px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.85rem;
+      background: #fff;
+      color: var(--text-main);
+      transition: border-color 0.2s;
+      text-transform: uppercase;
+    }
+
+    .manual-input::placeholder { color: #aaa; text-transform: none; }
+    .manual-input:focus {
+      outline: none;
+      border-color: var(--green-light);
+    }
+
+    .btn-manual-lookup {
+      background: var(--green-dark);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 16px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── History ── */
+    .history-card {
+      background: var(--cream);
+      margin: 12px 12px 0;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    .history-header {
+      padding: 14px 18px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+
+    .history-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .history-title i { color: var(--green-light); }
+
+    .btn-clear-history {
+      font-size: 0.7rem;
+      color: var(--red-soft);
+      background: none;
+      border: 1px solid rgba(192,57,43,0.3);
+      border-radius: 6px;
+      padding: 3px 9px;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .history-list {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 8px 0;
+    }
+
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-track { background: transparent; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--cream-dark); border-radius: 2px; }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 18px;
+      border-bottom: 1px solid var(--cream-dark);
+      animation: slide-in 0.3s ease;
+    }
+
+    .history-item:last-child { border-bottom: none; }
+
+    @keyframes slide-in {
+      from { transform: translateY(-8px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .history-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .history-icon.contributor { background: #fff3cd; }
+    .history-icon.member      { background: #e8f5e9; }
+    .history-icon.rejected    { background: #fce4e4; }
+
+    .history-info { flex: 1; min-width: 0; }
+
+    .history-memno {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-meta {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .history-parcels {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .parcels-contributor { background: #fff3cd; color: #856404; }
+    .parcels-member      { background: #d1e7dd; color: #0f5132; }
+    .parcels-rejected    { background: #f8d7da; color: #842029; }
+
+    .history-empty {
+      text-align: center;
+      padding: 28px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+    }
+
+    .history-empty i {
+      font-size: 2rem;
+      color: var(--cream-dark);
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    /* ── Scanning pulse animation ── */
+    .scanning-active .qr-viewport {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px rgba(212,160,23,0.3);
+      animation: border-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes border-pulse {
+      0%, 100% { box-shadow: 0 0 0 2px rgba(212,160,23,0.3); }
+      50%       { box-shadow: 0 0 0 5px rgba(212,160,23,0.1); }
+    }
+
+    /* ── SweetAlert custom ── */
+    .swal-result-icon {
+      width: 90px;
+      height: 90px;
+      margin: 0 auto 4px;
+    }
+
+    .swal-result-icon svg,
+    .swal-result-icon img {
+      width: 100%;
+      height: 100%;
+    }
+
+    .swal-memno {
+      font-size: 0.9rem;
+      font-family: monospace;
+      background: rgba(0,0,0,0.06);
+      padding: 4px 12px;
+      border-radius: 6px;
+      display: inline-block;
+      margin: 4px 0 10px;
+    }
+
+    .swal-contributor-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+      border: 1px solid var(--gold);
+      color: #856404;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .swal-parcel-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-top: 6px;
+    }
+
+    .swal-parcel-icons {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* Inline SVG icon styles */
+    .icon-meat, .icon-porridge {
+      width: 40px;
+      height: 40px;
+    }
+
+    /* ── Scan beep indicator ── */
+    .scan-indicator {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 4px 14px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .pulse-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background: #4ade80;
+      border-radius: 50%;
+      margin-right: 5px;
+      animation: dot-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes dot-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    /* ── Settings fab ── */
+    .fab-settings {
+      position: fixed;
+      bottom: 20px;
+      right: 16px;
+      width: 48px;
+      height: 48px;
+      background: var(--gold);
+      color: var(--green-dark);
+      border-radius: 50%;
+      border: none;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      cursor: pointer;
+      z-index: 200;
+      transition: transform 0.2s;
+    }
+
+    .fab-settings:active { transform: scale(0.92); }
+
+    /* ── Settings drawer ── */
+    .settings-drawer {
+      position: fixed;
+      bottom: -100%;
+      left: 0; right: 0;
+      background: var(--cream);
+      border-radius: 24px 24px 0 0;
+      padding: 20px 20px 40px;
+      z-index: 300;
+      transition: bottom 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+    }
+
+    .settings-drawer.open { bottom: 0; }
+
+    .drawer-handle {
+      width: 40px;
+      height: 4px;
+      background: var(--cream-dark);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+
+    .drawer-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 14px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--cream-dark);
+    }
+
+    .setting-row:last-child { border-bottom: none; }
+
+    .setting-label {
+      font-size: 0.85rem;
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .setting-desc {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .form-check-input:checked {
+      background-color: var(--green-mid);
+      border-color: var(--green-mid);
+    }
+
+    .event-type-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .event-type-btn {
+      padding: 5px 14px;
+      border-radius: 8px;
+      border: 2px solid var(--cream-dark);
+      background: #fff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      transition: all 0.15s;
+    }
+
+    .event-type-btn.active-meat {
+      border-color: var(--green-light);
+      background: #e8f5e9;
+      color: var(--green-dark);
+    }
+
+    .event-type-btn.active-porridge {
+      border-color: #e67e22;
+      background: #fff3e0;
+      color: #7c3700;
+    }
+
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 250;
+      display: none;
+    }
+
+    .drawer-overlay.open { display: block; }
+
+    /* ── Responsive tweaks ── */
+    @media (min-width: 480px) {
+      .app-wrapper { border-left: 1px solid rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- Header -->
+  <div class="app-header">
+    <div class="header-arabic">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيم</div>
+    <h1 class="header-title">Distribution Scanner</h1>
+    <div class="header-subtitle">Qurbani Meat &amp; Porridge Distribution System</div>
+    <div class="header-event-badge" id="event-badge">
+      <i class="fa-solid fa-drumstick-bite me-1"></i>
+      <span id="event-type-label">Meat Distribution</span>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-num" id="stat-distributed">0</div>
+      <div class="stat-label">Distributed</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-contributors">0</div>
+      <div class="stat-label">Contributors</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-parcels">0</div>
+      <div class="stat-label">Total Parcels</div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-pending">–</div>
+      <div class="stat-label">Members</div>
+    </div>
+  </div>
+
+  <!-- Main Card: Scanner -->
+  <div class="main-card" id="scanner-wrap">
+    <div class="scanner-section">
+      <div class="section-label"><i class="fa-solid fa-qrcode me-1"></i>QR Scanner</div>
+
+      <div class="qr-viewport" id="qr-viewport">
+        <!-- Placeholder -->
+        <div class="camera-placeholder" id="cam-placeholder">
+          <i class="fa-solid fa-camera"></i>
+          <p>Tap <strong>Start Scanner</strong> below to activate camera</p>
+        </div>
+
+        <!-- Video -->
+        <video id="qr-video" playsinline autoplay muted></video>
+        <canvas id="qr-canvas"></canvas>
+
+        <!-- Overlay corners -->
+        <div class="qr-overlay">
+          <div class="scan-frame">
+            <div class="scan-frame-extra"></div>
+            <div class="scan-line" id="scan-line"></div>
+          </div>
+        </div>
+
+        <!-- Scanning indicator -->
+        <div class="scan-indicator" id="scan-indicator" style="display:none;">
+          <span class="pulse-dot"></span>Scanning...
+        </div>
+      </div>
+
+      <div class="camera-controls">
+        <button class="btn-scan-start" id="btn-start">
+          <i class="fa-solid fa-play"></i> Start Scanner
+        </button>
+        <button class="btn-scan-stop" id="btn-stop" style="display:none;">
+          <i class="fa-solid fa-stop"></i> Stop
+        </button>
+        <button class="btn-flip-cam" id="btn-flip" title="Flip Camera" style="display:none;">
+          <i class="fa-solid fa-camera-rotate"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Manual Input -->
+    <div class="manual-section">
+      <div class="section-label"><i class="fa-solid fa-keyboard me-1"></i>Manual Lookup</div>
+      <div class="manual-input-wrap">
+        <input
+          type="text"
+          class="manual-input"
+          id="manual-input"
+          placeholder="e.g. PR/061/1/O/G"
+          maxlength="20"
+        />
+        <button class="btn-manual-lookup" id="btn-manual-lookup">
+          <i class="fa-solid fa-magnifying-glass"></i> Look Up
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Card -->
+  <div class="history-card">
+    <div class="history-header">
+      <div class="history-title">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        Recent Scans
+      </div>
+      <button class="btn-clear-history" id="btn-clear-history">
+        <i class="fa-solid fa-trash-can"></i> Clear
+      </button>
+    </div>
+    <div class="history-list" id="history-list">
+      <div class="history-empty">
+        <i class="fa-regular fa-clipboard"></i>
+        No scans yet. Start scanning to see results here.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app-wrapper -->
+
+<!-- Settings FAB -->
+<button class="fab-settings" id="fab-settings" title="Settings">
+  <i class="fa-solid fa-sliders"></i>
+</button>
+
+<!-- Drawer overlay -->
+<div class="drawer-overlay" id="drawer-overlay"></div>
+
+<!-- Settings Drawer -->
+<div class="settings-drawer" id="settings-drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-title"><i class="fa-solid fa-sliders me-2"></i>Settings</div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">Distribution Type</div>
+      <div class="setting-desc">Sets parcel icon and display theme</div>
+    </div>
+    <div class="event-type-btns">
+      <button class="event-type-btn active-meat" id="btn-type-meat" onclick="setEventType('meat')">
+        🥩 Meat
+      </button>
+      <button class="event-type-btn" id="btn-type-porridge" onclick="setEventType('porridge')">
+        🍲 Porridge
+      </button>
+    </div>
+  </div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">Allow Re-scan</div>
+      <div class="setting-desc">Let same member scan again if already collected</div>
+    </div>
+    <div class="form-check form-switch mb-0">
+      <input class="form-check-input" type="checkbox" id="toggle-rescan" style="width:44px;height:22px;" />
+    </div>
+  </div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">Contributor Bonus Parcels</div>
+      <div class="setting-desc">How many extra parcels contributors receive</div>
+    </div>
+    <select id="contributor-bonus" style="border:1px solid #ddd;border-radius:8px;padding:4px 8px;font-family:Outfit,sans-serif;font-size:0.82rem;">
+      <option value="1" selected>+1 (Total: 2)</option>
+      <option value="2">+2 (Total: 3)</option>
+      <option value="3">+3 (Total: 4)</option>
+    </select>
+  </div>
+
+  <div class="setting-row">
+    <div>
+      <div class="setting-label">Reset Today's Data</div>
+      <div class="setting-desc">Clears all scan history and counts</div>
+    </div>
+    <button class="btn-manual-lookup" style="background:#b91c1c;border-radius:8px;font-size:0.78rem;padding:7px 12px;" onclick="resetAllData()">
+      <i class="fa-solid fa-rotate-left"></i> Reset
+    </button>
+  </div>
+</div>
+
+<!-- Hidden audio for beep -->
+<audio id="beep-ok"  src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA..." preload="auto"></audio>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ──────────────────────────────────────────────
+//  App State
+// ──────────────────────────────────────────────
+let membersData     = { members: [], contributors: [] };
+let scanHistory     = JSON.parse(sessionStorage.getItem('scanHistory')    || '[]');
+let distributedSet  = new Set(JSON.parse(sessionStorage.getItem('distributed') || '[]'));
+let eventType       = localStorage.getItem('eventType') || 'meat';
+let allowRescan     = localStorage.getItem('allowRescan') === 'true';
+let contributorBonus = parseInt(localStorage.getItem('contributorBonus') || '1');
+
+let videoStream   = null;
+let scanActive    = false;
+let lastScanned   = '';
+let lastScannedTs = 0;
+let facingMode    = 'environment';
+let rafId         = null;
+
+const video       = document.getElementById('qr-video');
+const canvas      = document.getElementById('qr-canvas');
+const ctx         = canvas.getContext('2d', { willReadFrequently: true });
+const placeholder = document.getElementById('cam-placeholder');
+const scanLine    = document.getElementById('scan-line');
+const scanIndicator = document.getElementById('scan-indicator');
+const btnStart    = document.getElementById('btn-start');
+const btnStop     = document.getElementById('btn-stop');
+const btnFlip     = document.getElementById('btn-flip');
+
+// ──────────────────────────────────────────────
+//  Load data
+// ──────────────────────────────────────────────
+async function loadData() {
+  try {
+    const res  = await fetch('./data/members.json');
+    membersData = await res.json();
+  } catch (e) {
+    // Fallback demo data if fetch fails (e.g. opened as file://)
+    membersData = {
+      members: ['PR/001/1/O/G','PR/002/1/O/G','PR/003/1/O/G','PR/061/1/O/G','PR/065/1/O/G','PR/070/1/O/G','PR/100/1/O/G'],
+      contributors: ['PR/001/1/O/G','PR/061/1/O/G','PR/100/1/O/G']
+    };
+  }
+  document.getElementById('stat-pending').textContent = membersData.members.length;
+  applySettings();
+  renderHistory();
+  updateStats();
+}
+
+// ──────────────────────────────────────────────
+//  Settings
+// ──────────────────────────────────────────────
+function applySettings() {
+  document.getElementById('toggle-rescan').checked = allowRescan;
+  document.getElementById('contributor-bonus').value = contributorBonus;
+  setEventType(eventType, false);
+}
+
+function setEventType(type, save = true) {
+  eventType = type;
+  if (save) localStorage.setItem('eventType', type);
+
+  const meatBtn     = document.getElementById('btn-type-meat');
+  const porridgeBtn = document.getElementById('btn-type-porridge');
+  const label       = document.getElementById('event-type-label');
+  const badge       = document.getElementById('event-badge');
+
+  if (type === 'meat') {
+    meatBtn.classList.add('active-meat');
+    meatBtn.classList.remove('active-porridge');
+    porridgeBtn.classList.remove('active-meat', 'active-porridge');
+    label.textContent = 'Meat Distribution';
+    badge.querySelector('i').className = 'fa-solid fa-drumstick-bite me-1';
+  } else {
+    porridgeBtn.classList.add('active-porridge');
+    porridgeBtn.classList.remove('active-meat');
+    meatBtn.classList.remove('active-meat', 'active-porridge');
+    label.textContent = 'Porridge Distribution';
+    badge.querySelector('i').className = 'fa-solid fa-bowl-food me-1';
+  }
+}
+
+document.getElementById('toggle-rescan').addEventListener('change', e => {
+  allowRescan = e.target.checked;
+  localStorage.setItem('allowRescan', allowRescan);
+});
+
+document.getElementById('contributor-bonus').addEventListener('change', e => {
+  contributorBonus = parseInt(e.target.value);
+  localStorage.setItem('contributorBonus', contributorBonus);
+});
+
+// ──────────────────────────────────────────────
+//  Camera
+// ──────────────────────────────────────────────
+async function startScanner() {
+  try {
+    const constraints = {
+      video: {
+        facingMode,
+        width:  { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    };
+
+    videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = videoStream;
+    await video.play();
+
+    placeholder.style.display = 'none';
+    scanIndicator.style.display = 'block';
+    btnStart.style.display = 'none';
+    btnStop.style.display  = '';
+    btnFlip.style.display  = '';
+
+    document.getElementById('scanner-wrap').classList.add('scanning-active');
+    scanActive = true;
+    requestAnimationFrame(scanFrame);
+
+  } catch (err) {
+    Swal.fire({
+      icon: 'error',
+      title: 'Camera Error',
+      text: 'Could not access camera. Please allow camera permission and try again.',
+      confirmButtonColor: '#1a6b43'
+    });
+  }
+}
+
+function stopScanner() {
+  scanActive = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+  video.srcObject = null;
+  placeholder.style.display = '';
+  scanIndicator.style.display = 'none';
+  btnStart.style.display = '';
+  btnStop.style.display  = 'none';
+  btnFlip.style.display  = 'none';
+  document.getElementById('scanner-wrap').classList.remove('scanning-active');
+}
+
+async function flipCamera() {
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  stopScanner();
+  await startScanner();
+}
+
+function scanFrame() {
+  if (!scanActive) return;
+  rafId = requestAnimationFrame(scanFrame);
+
+  if (video.readyState < video.HAVE_ENOUGH_DATA) return;
+
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height, {
+    inversionAttempts: 'dontInvert'
+  });
+
+  if (code && code.data) {
+    const now = Date.now();
+    if (code.data !== lastScanned || now - lastScannedTs > 3000) {
+      lastScanned   = code.data;
+      lastScannedTs = now;
+      handleLookup(code.data.trim().toUpperCase());
+    }
+  }
+}
+
+btnStart.addEventListener('click', startScanner);
+btnStop.addEventListener('click', stopScanner);
+btnFlip.addEventListener('click', flipCamera);
+
+// ──────────────────────────────────────────────
+//  Lookup Logic
+// ──────────────────────────────────────────────
+function handleLookup(memberNo) {
+  const isMember      = membersData.members.includes(memberNo);
+  const isContributor = membersData.contributors.includes(memberNo);
+  const alreadyGiven  = distributedSet.has(memberNo);
+
+  if (!isMember) {
+    showNotFound(memberNo);
+    return;
+  }
+
+  if (alreadyGiven && !allowRescan) {
+    showAlreadyCollected(memberNo, isContributor);
+    return;
+  }
+
+  const parcels = isContributor ? 1 + contributorBonus : 1;
+  showResult(memberNo, isContributor, parcels);
+  markDistributed(memberNo, isContributor, parcels);
+}
+
+function markDistributed(memberNo, isContributor, parcels) {
+  distributedSet.add(memberNo);
+  sessionStorage.setItem('distributed', JSON.stringify([...distributedSet]));
+
+  const entry = {
+    memberNo,
+    isContributor,
+    parcels,
+    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    status: 'given',
+    eventType
+  };
+
+  scanHistory.unshift(entry);
+  if (scanHistory.length > 50) scanHistory.pop();
+  sessionStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+
+  renderHistory();
+  updateStats();
+}
+
+// ──────────────────────────────────────────────
+//  Result Popups (SweetAlert2)
+// ──────────────────────────────────────────────
+function parcelIconsHTML(count, type) {
+  const icon = type === 'porridge'
+    ? `<span style="font-size:2.2rem">🍲</span>`
+    : `<span style="font-size:2.2rem">🥩</span>`;
+  return Array(count).fill(icon).join('');
+}
+
+function showResult(memberNo, isContributor, parcels) {
+  const isMeat    = eventType === 'meat';
+  const typeLabel = isMeat ? 'Meat' : 'Porridge';
+  const bgColor   = isContributor ? '#fffbeb' : '#f0fdf4';
+  const accentColor = isContributor ? '#d4a017' : '#2a9d5c';
+
+  const contributorBadge = isContributor
+    ? `<div style="margin-bottom:10px;">
+        <span style="background:linear-gradient(135deg,#fff3cd,#ffeaa7);border:1px solid #d4a017;color:#856404;font-size:0.7rem;font-weight:700;padding:4px 14px;border-radius:20px;text-transform:uppercase;letter-spacing:0.6px;">
+          <i class="fa-solid fa-star" style="margin-right:4px;"></i>Contributor
+        </span>
+       </div>`
+    : '';
+
+  Swal.fire({
+    background: bgColor,
+    showConfirmButton: true,
+    confirmButtonText: `<i class="fa-solid fa-check me-1"></i> Confirm & Give`,
+    confirmButtonColor: accentColor,
+    showCancelButton: true,
+    cancelButtonText: 'Cancel',
+    cancelButtonColor: '#6c757d',
+    allowOutsideClick: false,
+    html: `
+      <div style="text-align:center;padding:4px 0;">
+        ${contributorBadge}
+        <div style="font-size:1rem;font-weight:700;color:#1a2e1a;margin-bottom:2px;">Member Found</div>
+        <div style="font-family:monospace;background:rgba(0,0,0,0.07);padding:5px 14px;border-radius:8px;font-size:0.9rem;color:#333;display:inline-block;margin-bottom:12px;">${memberNo}</div>
+        <div style="font-size:0.8rem;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">${typeLabel} Parcels to Issue</div>
+        <div style="display:flex;justify-content:center;gap:6px;margin-bottom:10px;">
+          ${parcelIconsHTML(parcels, eventType)}
+        </div>
+        <div style="font-size:1.5rem;font-weight:800;color:${accentColor};">${parcels} Parcel${parcels > 1 ? 's' : ''}</div>
+        ${isContributor ? `<div style="font-size:0.72rem;color:#856404;margin-top:4px;">Contributor Bonus: +${contributorBonus} extra parcel${contributorBonus > 1 ? 's' : ''}</div>` : ''}
+      </div>
+    `
+  }).then(result => {
+    if (!result.isConfirmed) {
+      // Remove from distributed if cancelled
+      distributedSet.delete(memberNo);
+      sessionStorage.setItem('distributed', JSON.stringify([...distributedSet]));
+      scanHistory.shift();
+      sessionStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+      renderHistory();
+      updateStats();
+    }
+  });
+}
+
+function showNotFound(memberNo) {
+  // Log rejected scan
+  const entry = {
+    memberNo,
+    isContributor: false,
+    parcels: 0,
+    time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    status: 'rejected',
+    eventType
+  };
+  scanHistory.unshift(entry);
+  if (scanHistory.length > 50) scanHistory.pop();
+  sessionStorage.setItem('scanHistory', JSON.stringify(scanHistory));
+  renderHistory();
+
+  Swal.fire({
+    icon: 'error',
+    title: 'Not a Member',
+    html: `<div style="font-family:monospace;background:#fef2f2;padding:6px 14px;border-radius:8px;color:#dc2626;font-size:0.9rem;margin-bottom:4px;">${memberNo}</div>
+           <div style="font-size:0.82rem;color:#666;">This membership number is not registered. Please verify the card.</div>`,
+    confirmButtonColor: '#2a9d5c',
+    confirmButtonText: 'OK'
+  });
+}
+
+function showAlreadyCollected(memberNo, isContributor) {
+  Swal.fire({
+    icon: 'warning',
+    title: 'Already Collected',
+    html: `<div style="font-family:monospace;background:#fffbeb;padding:6px 14px;border-radius:8px;color:#d97706;font-size:0.9rem;margin-bottom:4px;">${memberNo}</div>
+           <div style="font-size:0.82rem;color:#666;">This member has already collected their ${eventType === 'meat' ? 'meat' : 'porridge'} today.<br><br>
+           <em>Enable "Allow Re-scan" in settings to override.</em></div>`,
+    confirmButtonColor: '#2a9d5c',
+    confirmButtonText: 'OK'
+  });
+}
+
+// ──────────────────────────────────────────────
+//  Manual Lookup
+// ──────────────────────────────────────────────
+document.getElementById('btn-manual-lookup').addEventListener('click', () => {
+  const val = document.getElementById('manual-input').value.trim().toUpperCase();
+  if (!val) return;
+  handleLookup(val);
+  document.getElementById('manual-input').value = '';
+});
+
+document.getElementById('manual-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-manual-lookup').click();
+});
+
+// ──────────────────────────────────────────────
+//  Stats
+// ──────────────────────────────────────────────
+function updateStats() {
+  const givenEntries = scanHistory.filter(e => e.status === 'given');
+  const contributors = givenEntries.filter(e => e.isContributor).length;
+  const totalParcels = givenEntries.reduce((s, e) => s + e.parcels, 0);
+
+  document.getElementById('stat-distributed').textContent = givenEntries.length;
+  document.getElementById('stat-contributors').textContent = contributors;
+  document.getElementById('stat-parcels').textContent = totalParcels;
+}
+
+// ──────────────────────────────────────────────
+//  History Rendering
+// ──────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('history-list');
+
+  if (!scanHistory.length) {
+    list.innerHTML = `<div class="history-empty">
+      <i class="fa-regular fa-clipboard"></i>
+      No scans yet. Start scanning to see results here.
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = scanHistory.map(entry => {
+    if (entry.status === 'rejected') {
+      return `<div class="history-item">
+        <div class="history-icon rejected"><i class="fa-solid fa-ban" style="color:#b91c1c;"></i></div>
+        <div class="history-info">
+          <div class="history-memno">${entry.memberNo}</div>
+          <div class="history-meta"><i class="fa-solid fa-clock me-1"></i>${entry.time} &bull; Not a member</div>
+        </div>
+        <span class="history-parcels parcels-rejected"><i class="fa-solid fa-xmark me-1"></i>Rejected</span>
+      </div>`;
+    }
+
+    const iconClass   = entry.isContributor ? 'contributor' : 'member';
+    const typeIcon    = entry.eventType === 'porridge' ? '🍲' : '🥩';
+    const parcelClass = entry.isContributor ? 'parcels-contributor' : 'parcels-member';
+    const badge       = entry.isContributor
+      ? `<i class="fa-solid fa-star" style="color:#d4a017;font-size:0.8rem;"></i>`
+      : `<i class="fa-solid fa-user" style="color:#2a9d5c;font-size:0.8rem;"></i>`;
+
+    return `<div class="history-item">
+      <div class="history-icon ${iconClass}">${typeIcon}</div>
+      <div class="history-info">
+        <div class="history-memno">${entry.memberNo}</div>
+        <div class="history-meta">${badge} ${entry.isContributor ? 'Contributor' : 'Member'} &bull; ${entry.time}</div>
+      </div>
+      <span class="history-parcels ${parcelClass}">${entry.parcels} Parcel${entry.parcels > 1 ? 's' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+// ──────────────────────────────────────────────
+//  Clear & Reset
+// ──────────────────────────────────────────────
+document.getElementById('btn-clear-history').addEventListener('click', () => {
+  Swal.fire({
+    title: 'Clear Scan History?',
+    text: 'This only clears the visible history list, not the distributed records.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#b91c1c',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Clear History'
+  }).then(result => {
+    if (result.isConfirmed) {
+      scanHistory = [];
+      sessionStorage.setItem('scanHistory', '[]');
+      renderHistory();
+      updateStats();
+    }
+  });
+});
+
+function resetAllData() {
+  Swal.fire({
+    title: 'Reset All Data?',
+    html: 'This will clear <strong>all scan history</strong> and <strong>distributed records</strong>. Members will be able to collect again.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#b91c1c',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Yes, Reset Everything'
+  }).then(result => {
+    if (result.isConfirmed) {
+      scanHistory = [];
+      distributedSet = new Set();
+      sessionStorage.removeItem('scanHistory');
+      sessionStorage.removeItem('distributed');
+      renderHistory();
+      updateStats();
+      closeSettings();
+      Swal.fire({ icon: 'success', title: 'Reset Complete', timer: 1500, showConfirmButton: false });
+    }
+  });
+}
+
+// ──────────────────────────────────────────────
+//  Settings Drawer
+// ──────────────────────────────────────────────
+const fabSettings    = document.getElementById('fab-settings');
+const settingsDrawer = document.getElementById('settings-drawer');
+const drawerOverlay  = document.getElementById('drawer-overlay');
+
+fabSettings.addEventListener('click', () => {
+  settingsDrawer.classList.add('open');
+  drawerOverlay.classList.add('open');
+});
+
+drawerOverlay.addEventListener('click', closeSettings);
+
+function closeSettings() {
+  settingsDrawer.classList.remove('open');
+  drawerOverlay.classList.remove('open');
+}
+
+// ──────────────────────────────────────────────
+//  Init
+// ──────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
