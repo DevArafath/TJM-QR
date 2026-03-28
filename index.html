@@ -1424,7 +1424,7 @@ function exportToExcel() {
   const givenEntries  = scanHistory.filter(e => e.status === 'given');
   const totalParcels  = givenEntries.reduce((s, e) => s + e.parcels, 0);
   const summary = [
-    { 'Summary':          'Event',           'Value': membersData.event?.name || 'Distribution' },
+    { 'Summary':          'Event',           'Value': membersData.events?.[eventType]?.name || 'Distribution' },
     { 'Summary':          'Date',            'Value': new Date().toLocaleDateString('en-GB') },
     { 'Summary':          'Type',            'Value': eventType === 'meat' ? 'Meat' : 'Porridge' },
     { 'Summary':          'Total Scanned',   'Value': givenEntries.length },

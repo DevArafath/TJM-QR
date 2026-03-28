@@ -1,9 +1,15 @@
 {
-  "event": {
-    "name": "Qurbani Meat Distribution",
-    "date": "2026-03-18",
-    "location": "Masjid Main Hall",
-    "type": "meat"
+  "events": {
+    "meat": {
+      "name": "Qurbani Meat Distribution",
+      "date": "2026-03-18",
+      "location": "Masjid Main Hall"
+    },
+    "porridge": {
+      "name": "Porridge Distribution",
+      "date": "2026-03-18",
+      "location": "Masjid Main Hall"
+    }
   },
   "members": [
     "FG/001/1/O/G",
