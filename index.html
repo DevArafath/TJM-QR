@@ -959,8 +959,10 @@
   </div>
 </div>
 
-<!-- Hidden audio for beep -->
-<audio id="beep-ok"  src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA..." preload="auto"></audio>
+<!-- Sound Effects -->
+<audio id="snd-success"   src="sounds/scan_beep.mp3"      preload="auto"></audio>
+<audio id="snd-duplicate" src="sounds/scan_duplicate.mp3"  preload="auto"></audio>
+<audio id="snd-warning"   src="sounds/scan_warning.mp3"    preload="auto"></audio>
 
   <!-- SheetJS for Excel export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -987,6 +989,13 @@ let lastScanned   = '';
 let lastScannedTs = 0;
 let facingMode    = 'environment';
 let rafId         = null;
+
+function playSound(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.currentTime = 0;
+  el.play().catch(() => {});
+}
 
 const video       = document.getElementById('qr-video');
 const canvas      = document.getElementById('qr-canvas');
