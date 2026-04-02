@@ -484,6 +484,7 @@
     .history-icon.contributor { background: #fff3cd; }
     .history-icon.member      { background: #e8f5e9; }
     .history-icon.rejected    { background: #fce4e4; }
+    .history-icon.due         { background: #fff0e0; }
 
     .history-info { flex: 1; min-width: 0; }
 
@@ -513,6 +514,7 @@
     .parcels-contributor { background: #fff3cd; color: #856404; }
     .parcels-member      { background: #d1e7dd; color: #0f5132; }
     .parcels-rejected    { background: #f8d7da; color: #842029; }
+    .parcels-due         { background: #ffe8cc; color: #7c3700; }
 
     .history-empty {
       text-align: center;
@@ -957,10 +959,8 @@
   </div>
 </div>
 
-<!-- Hidden audio for beep Sound Effects -->
-<audio id="snd-success"   src="sounds/scan_beep.mp3"      preload="auto"></audio>
-<audio id="snd-duplicate" src="sounds/scan_duplicate.mp3"  preload="auto"></audio>
-<audio id="snd-warning"   src="sounds/scan_warning.mp3"    preload="auto"></audio>
+<!-- Hidden audio for beep -->
+<audio id="beep-ok"  src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA..." preload="auto"></audio>
 
   <!-- SheetJS for Excel export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -970,13 +970,6 @@
 // ──────────────────────────────────────────────
 //  App State
 // ──────────────────────────────────────────────
-function playSound(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.currentTime = 0;
-  el.play().catch(() => {}); // catch needed for mobile autoplay policy
-}
-
 let membersData     = { members: [], contributors: [] };
 let scanHistory     = JSON.parse(sessionStorage.getItem('scanHistory') || '[]');
 let eventType       = localStorage.getItem('eventType') || 'meat';
@@ -1174,6 +1167,7 @@ function handleLookup(memberNo) {
   const isMember      = membersData.members.includes(memberNo);
   const isContributor = membersData.contributors.includes(memberNo);
   const alreadyGiven  = distributedSet.has(memberNo);
+  const dueAmount     = membersData.dues ? (membersData.dues[memberNo] ?? null) : null;
 
   if (!isMember) {
     playSound('snd-warning');
@@ -1188,11 +1182,10 @@ function handleLookup(memberNo) {
   }
 
   const parcels = (isContributor && contributorBonusEnabled) ? 1 + contributorBonus : 1;
-  showResult(memberNo, isContributor, parcels);
+  showResult(memberNo, isContributor, parcels, dueAmount);
 }
 
-function markDistributed(memberNo, isContributor, parcels) {
-  playSound('snd-success');
+function markDistributed(memberNo, isContributor, parcels, dueAmount, receipt) {
   distributedSet.add(memberNo);
   sessionStorage.setItem(distributedKey(), JSON.stringify([...distributedSet]));
 
@@ -1200,6 +1193,9 @@ function markDistributed(memberNo, isContributor, parcels) {
     memberNo,
     isContributor,
     parcels,
+    isDue:     dueAmount !== null && dueAmount !== undefined,
+    dueAmount: dueAmount ?? null,
+    receipt:   receipt || '',
     time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     status: 'given',
     eventType
@@ -1223,25 +1219,53 @@ function parcelIconsHTML(count, type) {
   return Array(count).fill(icon).join('');
 }
 
-function showResult(memberNo, isContributor, parcels) {
-  const isMeat    = eventType === 'meat';
-  const typeLabel = isMeat ? 'Meat' : 'Porridge';
-  const bgColor   = isContributor ? '#fffbeb' : '#f0fdf4';
-  const accentColor = isContributor ? '#d4a017' : '#2a9d5c';
+function showResult(memberNo, isContributor, parcels, dueAmount) {
+  const isMeat      = eventType === 'meat';
+  const typeLabel   = isMeat ? 'Meat' : 'Porridge';
+  const isDue       = dueAmount !== null && dueAmount !== undefined;
+
+  // Colour scheme: due overrides contributor colour
+  const bgColor     = isDue ? '#fff8f0' : (isContributor ? '#fffbeb' : '#f0fdf4');
+  const accentColor = isDue ? '#c05e00' : (isContributor ? '#d4a017' : '#2a9d5c');
 
   const contributorBadge = isContributor
-    ? `<div style="margin-bottom:10px;">
+    ? `<div style="margin-bottom:8px;">
         <span style="background:linear-gradient(135deg,#fff3cd,#ffeaa7);border:1px solid #d4a017;color:#856404;font-size:0.7rem;font-weight:700;padding:4px 14px;border-radius:20px;text-transform:uppercase;letter-spacing:0.6px;">
           <i class="fa-solid fa-star" style="margin-right:4px;"></i>Contributor
         </span>
        </div>`
     : '';
 
+  const dueBanner = isDue
+    ? `<div style="background:#fff0e0;border:1.5px solid #e8873a;border-radius:10px;padding:10px 14px;margin-bottom:12px;text-align:left;">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#c05e00;margin-bottom:4px;">
+          <i class="fa-solid fa-triangle-exclamation" style="margin-right:5px;"></i>Outstanding Membership Due
+        </div>
+        <div style="font-size:1.15rem;font-weight:800;color:#7c3700;">
+          Rs. ${Number(dueAmount).toLocaleString()}
+        </div>
+        <div style="font-size:0.7rem;color:#a05000;margin-top:2px;">Member has an unpaid balance on their account.</div>
+       </div>
+       <div style="text-align:left;margin-bottom:12px;">
+         <label style="font-size:0.75rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">
+           <i class="fa-solid fa-receipt" style="margin-right:4px;color:#c05e00;"></i>Receipt No. / Authorised By <span style="color:#999;font-weight:400;">(optional)</span>
+         </label>
+         <input id="swal-receipt-input" type="text" placeholder="e.g. REC-2024-001 or Admin name"
+           style="width:100%;border:1.5px solid #e8c9a0;border-radius:8px;padding:8px 11px;font-size:0.85rem;font-family:Outfit,sans-serif;background:#fffdf8;color:#333;outline:none;"
+           oninput="this.style.borderColor='#e8873a'"
+         />
+       </div>`
+    : '';
+
+  const confirmBtnText = isDue
+    ? `<i class="fa-solid fa-unlock me-1"></i> Override & Proceed`
+    : `<i class="fa-solid fa-check me-1"></i> Confirm & Give`;
+
   popupOpen = true;
   Swal.fire({
     background: bgColor,
     showConfirmButton: true,
-    confirmButtonText: `<i class="fa-solid fa-check me-1"></i> Confirm & Give`,
+    confirmButtonText: confirmBtnText,
     confirmButtonColor: accentColor,
     showCancelButton: true,
     cancelButtonText: 'Cancel',
@@ -1252,12 +1276,13 @@ function showResult(memberNo, isContributor, parcels) {
         ${contributorBadge}
         <div style="font-size:1rem;font-weight:700;color:#1a2e1a;margin-bottom:2px;">Member Found</div>
         <div style="font-family:monospace;background:rgba(0,0,0,0.07);padding:5px 14px;border-radius:8px;font-size:0.9rem;color:#333;display:inline-block;margin-bottom:12px;">${memberNo}</div>
+        ${dueBanner}
         <div style="font-size:0.8rem;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">${typeLabel} Parcels to Issue</div>
         <div style="display:flex;justify-content:center;gap:6px;margin-bottom:10px;">
           ${parcelIconsHTML(parcels, eventType)}
         </div>
         <div style="font-size:1.5rem;font-weight:800;color:${accentColor};">${parcels} Parcel${parcels > 1 ? 's' : ''}</div>
-        ${isContributor ? `<div style="font-size:0.72rem;color:#856404;margin-top:4px;">Contributor Bonus: +${contributorBonus} extra parcel${contributorBonus > 1 ? 's' : ''}</div>` : ''}
+        ${isContributor && contributorBonusEnabled ? `<div style="font-size:0.72rem;color:#856404;margin-top:4px;">Contributor Bonus: +${contributorBonus} extra parcel${contributorBonus > 1 ? 's' : ''}</div>` : ''}
       </div>
     `
   }).then(result => {
@@ -1265,7 +1290,11 @@ function showResult(memberNo, isContributor, parcels) {
     lastScanned   = '';
     lastScannedTs = 0;
     if (result.isConfirmed) {
-      markDistributed(memberNo, isContributor, parcels);
+      const receipt = isDue
+        ? (document.getElementById('swal-receipt-input')?.value.trim() || '')
+        : '';
+      playSound('snd-success');
+      markDistributed(memberNo, isContributor, parcels, dueAmount, receipt);
     }
   });
 }
@@ -1362,18 +1391,30 @@ function renderHistory() {
       </div>`;
     }
 
-    const iconClass   = entry.isContributor ? 'contributor' : 'member';
+    const iconClass   = entry.isDue ? 'due' : (entry.isContributor ? 'contributor' : 'member');
     const typeIcon    = entry.eventType === 'porridge' ? '🍲' : '🥩';
-    const parcelClass = entry.isContributor ? 'parcels-contributor' : 'parcels-member';
-    const badge       = entry.isContributor
-      ? `<i class="fa-solid fa-star" style="color:#d4a017;font-size:0.8rem;"></i>`
-      : `<i class="fa-solid fa-user" style="color:#2a9d5c;font-size:0.8rem;"></i>`;
+    const parcelClass = entry.isDue ? 'parcels-due' : (entry.isContributor ? 'parcels-contributor' : 'parcels-member');
+
+    let badges = '';
+    if (entry.isContributor) badges += `<i class="fa-solid fa-star" style="color:#d4a017;font-size:0.8rem;"></i> `;
+    if (entry.isDue)         badges += `<i class="fa-solid fa-triangle-exclamation" style="color:#c05e00;font-size:0.8rem;"></i> `;
+    if (!entry.isContributor && !entry.isDue) badges = `<i class="fa-solid fa-user" style="color:#2a9d5c;font-size:0.8rem;"></i> `;
+
+    const memberLabel = [
+      entry.isContributor ? 'Contributor' : 'Member',
+      entry.isDue         ? `Due: Rs.${Number(entry.dueAmount).toLocaleString()}` : ''
+    ].filter(Boolean).join(' · ');
+
+    const receiptLine = (entry.isDue && entry.receipt)
+      ? `<div style="font-size:0.65rem;color:#a05000;margin-top:1px;"><i class="fa-solid fa-receipt me-1"></i>${entry.receipt}</div>`
+      : '';
 
     return `<div class="history-item">
       <div class="history-icon ${iconClass}">${typeIcon}</div>
       <div class="history-info">
         <div class="history-memno">${entry.memberNo}</div>
-        <div class="history-meta">${badge} ${entry.isContributor ? 'Contributor' : 'Member'} &bull; ${entry.time}</div>
+        <div class="history-meta">${badges}${memberLabel} &bull; ${entry.time}</div>
+        ${receiptLine}
       </div>
       <span class="history-parcels ${parcelClass}">${entry.parcels} Parcel${entry.parcels > 1 ? 's' : ''}</span>
     </div>`;
@@ -1413,6 +1454,9 @@ function exportToExcel() {
     '#':              scanHistory.length - i,
     'Membership No':  e.memberNo,
     'Type':           e.isContributor ? 'Contributor' : 'Member',
+    'Has Due':        e.isDue ? 'Yes' : 'No',
+    'Due Amount':     e.isDue ? e.dueAmount : '',
+    'Receipt / Auth': e.receipt || '',
     'Status':         e.status === 'given' ? 'Distributed' : 'Rejected',
     'Parcels':        e.status === 'given' ? e.parcels : 0,
     'Distribution':   e.eventType === 'meat' ? 'Meat' : 'Porridge',
@@ -1424,14 +1468,15 @@ function exportToExcel() {
   const givenEntries  = scanHistory.filter(e => e.status === 'given');
   const totalParcels  = givenEntries.reduce((s, e) => s + e.parcels, 0);
   const summary = [
-    { 'Summary':          'Event',           'Value': membersData.events?.[eventType]?.name || 'Distribution' },
+    { 'Summary':          'Event',           'Value': membersData.event?.name || 'Distribution' },
     { 'Summary':          'Date',            'Value': new Date().toLocaleDateString('en-GB') },
     { 'Summary':          'Type',            'Value': eventType === 'meat' ? 'Meat' : 'Porridge' },
     { 'Summary':          'Total Scanned',   'Value': givenEntries.length },
     { 'Summary':          'Contributors',    'Value': givenEntries.filter(e => e.isContributor).length },
     { 'Summary':          'Total Parcels',   'Value': totalParcels },
-    { 'Summary':          'Rejected Scans',  'Value': scanHistory.filter(e => e.status === 'rejected').length },
-    { 'Summary':          'Bonus Active',    'Value': contributorBonusEnabled ? `Yes (+${contributorBonus})` : 'No' },
+    { 'Summary': 'Rejected Scans',  'Value': scanHistory.filter(e => e.status === 'rejected').length },
+    { 'Summary': 'Due Members Served', 'Value': givenEntries.filter(e => e.isDue).length },
+    { 'Summary': 'Bonus Active',    'Value': contributorBonusEnabled ? `Yes (+${contributorBonus})` : 'No' },
   ];
 
   const wb = XLSX.utils.book_new();
@@ -1439,8 +1484,9 @@ function exportToExcel() {
   // Scan log sheet
   const ws1 = XLSX.utils.json_to_sheet(rows);
   ws1['!cols'] = [
-    { wch: 5 }, { wch: 20 }, { wch: 14 }, { wch: 12 },
-    { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 12 }
+    { wch: 5 }, { wch: 20 }, { wch: 14 }, { wch: 9 },
+    { wch: 12 }, { wch: 20 }, { wch: 12 }, { wch: 9 },
+    { wch: 14 }, { wch: 10 }, { wch: 12 }
   ];
   XLSX.utils.book_append_sheet(wb, ws1, 'Scan Log');
 
