@@ -997,6 +997,18 @@ function playSound(id) {
   el.play().catch(() => {});
 }
 
+function openPopup() {
+  popupOpen = true;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+}
+
+function closePopup() {
+  popupOpen = false;
+  lastScanned   = '';
+  lastScannedTs = 0;
+  if (scanActive) rafId = requestAnimationFrame(scanFrame);
+}
+
 const video       = document.getElementById('qr-video');
 const canvas      = document.getElementById('qr-canvas');
 const ctx         = canvas.getContext('2d', { willReadFrequently: true });
@@ -1270,11 +1282,8 @@ function showResult(memberNo, isContributor, parcels, dueAmount) {
     ? `<i class="fa-solid fa-unlock me-1"></i> Override & Proceed`
     : `<i class="fa-solid fa-check me-1"></i> Confirm & Give`;
 
-  popupOpen = true;
+  openPopup();
   Swal.fire({
-    background: bgColor,
-    showConfirmButton: true,
-    confirmButtonText: confirmBtnText,
     confirmButtonColor: accentColor,
     showCancelButton: true,
     cancelButtonText: 'Cancel',
@@ -1295,9 +1304,7 @@ function showResult(memberNo, isContributor, parcels, dueAmount) {
       </div>
     `
   }).then(result => {
-    popupOpen = false;
-    lastScanned   = '';
-    lastScannedTs = 0;
+    closePopup();
     if (result.isConfirmed) {
       const receipt = isDue
         ? (document.getElementById('swal-receipt-input')?.value.trim() || '')
@@ -1330,8 +1337,8 @@ function showNotFound(memberNo) {
            <div style="font-size:0.82rem;color:#666;">This membership number is not registered. Please verify the card.</div>`,
     confirmButtonColor: '#2a9d5c',
     confirmButtonText: 'OK'
-  }).then(() => { popupOpen = false; lastScanned = ''; lastScannedTs = 0; });
-  popupOpen = true;
+  }).then(() => { closePopup(); });
+  openPopup();
 }
 
 function showAlreadyCollected(memberNo, isContributor) {
@@ -1343,8 +1350,8 @@ function showAlreadyCollected(memberNo, isContributor) {
            <em>Enable "Allow Re-scan" in settings to override.</em></div>`,
     confirmButtonColor: '#2a9d5c',
     confirmButtonText: 'OK'
-  }).then(() => { popupOpen = false; lastScanned = ''; lastScannedTs = 0; });
-  popupOpen = true;
+  }).then(() => { closePopup(); });
+  openPopup();
 }
 
 // ──────────────────────────────────────────────
