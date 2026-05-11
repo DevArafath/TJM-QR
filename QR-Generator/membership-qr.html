@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Membership QR Generator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #13161d;
+      --surface2: #1c2030;
+      --border: #2a2f3d;
+      --accent: #f0c040;
+      --accent2: #e07b39;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --success: #4ade80;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Space Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 20px 14px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.1rem, 4vw, 1.4rem);
+      color: var(--accent);
+      letter-spacing: .04em;
+    }
+    .header p {
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* ── Membership display ── */
+    .membership-display {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      margin: 18px auto 0;
+      max-width: 480px;
+    }
+    .membership-label {
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .membership-number {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.3rem, 6vw, 1.9rem);
+      letter-spacing: .12em;
+      color: var(--text);
+      min-height: 2.2rem;
+    }
+    .membership-number .seg {
+      color: var(--accent);
+    }
+    .membership-number .placeholder {
+      color: var(--border);
+    }
+
+    /* ── Steps progress ── */
+    .steps-bar {
+      display: flex;
+      gap: 6px;
+      max-width: 480px;
+      margin: 14px auto 0;
+      padding: 0 4px;
+    }
+    .step-dot {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background .35s;
+    }
+    .step-dot.active { background: var(--accent); }
+    .step-dot.done   { background: var(--accent2); }
+
+    /* ── Section card ── */
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+      margin: 18px auto 0;
+      max-width: 480px;
+    }
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: .85rem;
+      color: var(--accent);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .section-hint {
+      font-size: .7rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Big choice buttons (FL, ML …) ── */
+    .choice-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .choice-grid.two-col { grid-template-columns: repeat(2, 1fr); }
+    .choice-grid.three-col { grid-template-columns: repeat(3, 1fr); }
+
+    .choice-btn {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: clamp(1rem, 4vw, 1.25rem);
+      padding: 18px 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: background .18s, border-color .18s, transform .1s, color .18s;
+      letter-spacing: .05em;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .choice-btn:hover { background: #222840; border-color: var(--accent); }
+    .choice-btn:active { transform: scale(.95); }
+    .choice-btn.selected {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0a0c10;
+    }
+
+    /* ── Numpad ── */
+    .numpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .num-btn {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 1.25rem;
+      font-weight: 700;
+      padding: 16px 10px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .num-btn:hover { background: #222840; border-color: var(--accent); }
+    .num-btn:active { transform: scale(.95); }
+    .num-btn.del {
+      color: var(--accent2);
+      font-size: .9rem;
+    }
+    .num-btn.confirm {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0a0c10;
+      grid-column: span 3;
+      font-family: 'Syne', sans-serif;
+      font-size: 1rem;
+      padding: 14px;
+    }
+    .num-btn.confirm:hover { background: #e0b030; }
+
+    /* ── Mini input display ── */
+    .digit-display {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+      letter-spacing: .25em;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      min-height: 54px;
+    }
+
+    /* ── QR result section ── */
+    .qr-card {
+      background: var(--surface);
+      border: 1.5px solid var(--accent);
+      border-radius: 16px;
+      padding: 28px 20px 24px;
+      margin: 18px auto 0;
+      max-width: 480px;
+      text-align: center;
+    }
+    .qr-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--accent);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .qr-member-id {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: var(--text);
+      letter-spacing: .12em;
+      margin-bottom: 20px;
+    }
+    #qr-container {
+      display: inline-block;
+      padding: 14px;
+      background: #fff;
+      border-radius: 12px;
+      margin-bottom: 22px;
+    }
+    .qr-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .action-btn {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: .75rem;
+      padding: 12px 8px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: .05em;
+    }
+    .action-btn svg { width: 22px; height: 22px; }
+    .action-btn:hover { background: #222840; border-color: var(--accent); }
+    .action-btn.new-btn {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0a0c10;
+      grid-column: span 3;
+      flex-direction: row;
+      justify-content: center;
+      padding: 14px;
+      font-size: .85rem;
+      margin-top: 6px;
+    }
+    .action-btn.new-btn:hover { background: #e0b030; }
+
+    /* ── Undo / Reset bar ── */
+    .undo-bar {
+      display: flex;
+      gap: 10px;
+      max-width: 480px;
+      margin: 14px auto 0;
+      padding: 0 4px;
+    }
+    .undo-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: .78rem;
+      padding: 11px 10px;
+      cursor: pointer;
+      letter-spacing: .06em;
+      transition: background .18s, border-color .18s, color .18s, opacity .2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .undo-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .undo-btn:hover:not(:disabled) { background: #222840; border-color: var(--accent); }
+    .undo-btn:active:not(:disabled) { transform: scale(.96); }
+    .undo-btn:disabled { opacity: .28; cursor: not-allowed; }
+    .undo-btn.reset-btn {
+      color: var(--accent2);
+      border-color: var(--accent2);
+      flex: 0 0 auto;
+      padding: 11px 16px;
+    }
+    .undo-btn.reset-btn:hover:not(:disabled) { background: rgba(224,123,57,.12); border-color: var(--accent2); }
+
+    /* ── Toast ── */
+    .toast-msg {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--success);
+      color: #0a0c10;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: .85rem;
+      padding: 10px 22px;
+      border-radius: 30px;
+      opacity: 0;
+      transition: all .35s;
+      pointer-events: none;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    .toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Hidden ── */
+    .hidden { display: none !important; }
+
+    /* ── Fade-in ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeUp .3s ease both; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>⬡ MEMBERSHIP QR</h1>
+  <p>Build your ID · Generate · Share</p>
+</div>
+
+<!-- Membership display -->
+<div class="membership-display container-fluid" id="mem-display">
+  <div class="membership-label">Membership Number</div>
+  <div class="membership-number" id="mem-number">
+    <span class="placeholder">_ _ / _ _ _ / _ / _ / _</span>
+  </div>
+</div>
+
+<!-- Progress dots -->
+<div class="steps-bar" id="steps-bar">
+  <div class="step-dot" id="dot-0"></div>
+  <div class="step-dot" id="dot-1"></div>
+  <div class="step-dot" id="dot-2"></div>
+  <div class="step-dot" id="dot-3"></div>
+  <div class="step-dot" id="dot-4"></div>
+</div>
+
+<!-- Undo / Reset bar -->
+<div class="undo-bar" id="undo-bar">
+  <button class="undo-btn" id="undo-btn" onclick="undoStep()" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+    Undo
+  </button>
+  <button class="undo-btn reset-btn" id="reset-btn" onclick="resetAll()" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+    Reset
+  </button>
+</div>
+
+<!-- ── STEP 1: Branch code ── -->
+<div class="section-card fade-in" id="step-branch">
+  <div class="section-title">Step 1 — Branch Code</div>
+  <div class="section-hint">Select your branch to start the membership number.</div>
+  <div class="choice-grid">
+    <button class="choice-btn" onclick="selectBranch('FL')">FL</button>
+    <button class="choice-btn" onclick="selectBranch('ML')">ML</button>
+    <button class="choice-btn" onclick="selectBranch('KR')">KR</button>
+    <button class="choice-btn" onclick="selectBranch('SL')">SL</button>
+    <button class="choice-btn" onclick="selectBranch('PR')">PR</button>
+    <button class="choice-btn" onclick="selectBranch('FG')">FG</button>
+  </div>
+</div>
+
+<!-- ── STEP 2: 3-digit number ── -->
+<div class="section-card fade-in hidden" id="step-num3">
+  <div class="section-title">Step 2 — 3-Digit Number</div>
+  <div class="section-hint">Enter the 3-digit membership number.</div>
+  <div class="digit-display" id="display-num3">_ _ _</div>
+  <div class="numpad" id="pad-num3"></div>
+</div>
+
+<!-- ── STEP 3: Single digit ── -->
+<div class="section-card fade-in hidden" id="step-num1">
+  <div class="section-title">Step 3 — Single Digit</div>
+  <div class="section-hint">Enter the single digit number.</div>
+  <div class="digit-display" id="display-num1">_</div>
+  <div class="numpad" id="pad-num1"></div>
+</div>
+
+<!-- ── STEP 4: O / R ── -->
+<div class="section-card fade-in hidden" id="step-or">
+  <div class="section-title">Step 4 — Type Code</div>
+  <div class="section-hint">Select the membership type character.</div>
+  <div class="choice-grid two-col">
+    <button class="choice-btn" onclick="selectOR('O')">O</button>
+    <button class="choice-btn" onclick="selectOR('R')">R</button>
+  </div>
+</div>
+
+<!-- ── STEP 5: G / F / S ── -->
+<div class="section-card fade-in hidden" id="step-gfs">
+  <div class="section-title">Step 5 — Grade</div>
+  <div class="section-hint">Select the membership grade.</div>
+  <div class="choice-grid three-col">
+    <button class="choice-btn" onclick="selectGFS('G')">G</button>
+    <button class="choice-btn" onclick="selectGFS('F')">F</button>
+    <button class="choice-btn" onclick="selectGFS('S')">S</button>
+  </div>
+</div>
+
+<!-- ── QR Result ── -->
+<div class="qr-card hidden fade-in" id="qr-result">
+  <div class="qr-title">✦ QR Code Ready</div>
+  <div class="qr-member-id" id="qr-member-text"></div>
+  <div id="qr-container"></div>
+  <div class="qr-actions">
+    <button class="action-btn" onclick="downloadQR()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download
+    </button>
+    <button class="action-btn" onclick="shareQR()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share
+    </button>
+    <button class="action-btn" onclick="copyText()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copy ID
+    </button>
+    <button class="action-btn new-btn" onclick="resetAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;margin-right:8px"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+      Generate New QR
+    </button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-msg" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let state = { branch: '', num3: '', num1: '', or: '', gfs: '' };
+  // currentStep: 0=branch, 1=num3, 2=num1, 3=or, 4=gfs, 5=qr
+  let currentStep = 0;
+
+  // ── Undo button state ──────────────────────────────────────────────────────
+  function syncUndoBar() {
+    const undoBtn  = document.getElementById('undo-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const canAct   = currentStep > 0;
+    undoBtn.disabled  = !canAct;
+    resetBtn.disabled = !canAct;
+  }
+
+  // ── Undo one step ─────────────────────────────────────────────────────────
+  function undoStep() {
+    if (currentStep === 0) return;
+
+    // Map step → what to clear and which step panel to go back to
+    const stepMap = [
+      // step 0 → no undo
+      null,
+      // step 1 (was on num3) → clear branch, back to branch
+      { clearFields: ['branch'], goTo: 'step-branch', dotStep: 0,
+        sideEffect: () => document.querySelectorAll('#step-branch .choice-btn').forEach(b => b.classList.remove('selected')) },
+      // step 2 (was on num1) → clear num3, back to num3
+      { clearFields: ['num3'], goTo: 'step-num3', dotStep: 1,
+        sideEffect: () => buildNumpad('pad-num3', 'display-num3', 3, confirmNum3) },
+      // step 3 (was on O/R) → clear num1, back to num1
+      { clearFields: ['num1'], goTo: 'step-num1', dotStep: 2,
+        sideEffect: () => buildNumpad('pad-num1', 'display-num1', 1, confirmNum1) },
+      // step 4 (was on GFS) → clear or, back to O/R
+      { clearFields: ['or'], goTo: 'step-or', dotStep: 3,
+        sideEffect: () => document.querySelectorAll('#step-or .choice-btn').forEach(b => b.classList.remove('selected')) },
+      // step 5 (was on QR) → clear gfs, back to GFS
+      { clearFields: ['gfs'], goTo: 'step-gfs', dotStep: 4,
+        sideEffect: () => document.querySelectorAll('#step-gfs .choice-btn').forEach(b => b.classList.remove('selected')) },
+    ];
+
+    const entry = stepMap[currentStep];
+    entry.clearFields.forEach(f => state[f] = '');
+    currentStep--;
+    updateDisplay();
+    updateDots(entry.dotStep);
+    if (entry.sideEffect) entry.sideEffect();
+    showStep(entry.goTo);
+    syncUndoBar();
+    toast('↩ Went back one step');
+  }
+
+  // ── Numpad confirm callbacks (named so undo can re-attach them) ────────────
+  function confirmNum3(val) {
+    state.num3 = val;
+    updateDisplay();
+    currentStep = 2;
+    updateDots(2);
+    syncUndoBar();
+    showStep('step-num1');
+    buildNumpad('pad-num1', 'display-num1', 1, confirmNum1);
+  }
+
+  function confirmNum1(val) {
+    state.num1 = val;
+    updateDisplay();
+    currentStep = 3;
+    updateDots(3);
+    syncUndoBar();
+    showStep('step-or');
+  }
+
+  // ── Numpad builder ────────────────────────────────────────────────────────
+  function buildNumpad(containerId, displayId, maxDigits, onConfirm) {
+    const container = document.getElementById(containerId);
+    const display   = document.getElementById(displayId);
+    let value = '';
+
+    function refresh() {
+      const shown = value.padEnd(maxDigits, '_').split('').join(' ');
+      display.textContent = shown;
+    }
+
+    container.innerHTML = '';
+    const digits = ['1','2','3','4','5','6','7','8','9','⌫','0','✓'];
+    digits.forEach(d => {
+      const btn = document.createElement('button');
+      btn.className = 'num-btn' + (d === '⌫' ? ' del' : '') + (d === '✓' ? ' confirm' : '');
+      btn.textContent = d;
+      btn.addEventListener('click', () => {
+        if (d === '⌫') {
+          value = value.slice(0, -1);
+          refresh();
+        } else if (d === '✓') {
+          if (value.length === maxDigits) {
+            onConfirm(value);
+          } else {
+            toast(`Enter all ${maxDigits} digit${maxDigits > 1 ? 's' : ''} first`);
+          }
+        } else {
+          if (value.length < maxDigits) {
+            value += d;
+            refresh();
+          }
+        }
+      });
+      container.appendChild(btn);
+    });
+    refresh();
+  }
+
+  // ── Update membership display ─────────────────────────────────────────────
+  function updateDisplay() {
+    const s = state;
+    const seg = (v, placeholder) => v
+      ? `<span class="seg">${v}</span>`
+      : `<span class="placeholder">${placeholder}</span>`;
+
+    const branch = seg(s.branch, '__');
+    const num3   = s.num3 ? `<span class="seg">${s.num3}</span>` : `<span class="placeholder">___</span>`;
+    const num1   = seg(s.num1, '_');
+    const or     = seg(s.or, '_');
+    const gfs    = seg(s.gfs, '_');
+
+    document.getElementById('mem-number').innerHTML =
+      `${branch}/${num3}/${num1}/${or}/${gfs}`;
+  }
+
+  // ── Step helpers ──────────────────────────────────────────────────────────
+  function showStep(id) {
+    ['step-branch','step-num3','step-num1','step-or','step-gfs','qr-result'].forEach(s => {
+      document.getElementById(s).classList.add('hidden');
+    });
+    const el = document.getElementById(id);
+    el.classList.remove('hidden');
+    el.classList.remove('fade-in');
+    void el.offsetWidth;
+    el.classList.add('fade-in');
+    // Hide undo bar on QR result screen (has its own reset button)
+    document.getElementById('undo-bar').style.display = (id === 'qr-result') ? 'none' : '';
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  }
+
+  function updateDots(step) { // 0-5
+    for (let i = 0; i < 5; i++) {
+      const dot = document.getElementById(`dot-${i}`);
+      dot.className = 'step-dot' + (i < step ? ' done' : i === step ? ' active' : '');
+    }
+  }
+
+  // ── Step handlers ─────────────────────────────────────────────────────────
+  function selectBranch(code) {
+    state.branch = code;
+    document.querySelectorAll('#step-branch .choice-btn').forEach(b => {
+      b.classList.toggle('selected', b.textContent === code);
+    });
+    updateDisplay();
+    currentStep = 1;
+    updateDots(1);
+    syncUndoBar();
+    setTimeout(() => {
+      buildNumpad('pad-num3', 'display-num3', 3, confirmNum3);
+      showStep('step-num3');
+    }, 250);
+  }
+
+  function selectOR(code) {
+    state.or = code;
+    document.querySelectorAll('#step-or .choice-btn').forEach(b => {
+      b.classList.toggle('selected', b.textContent === code);
+    });
+    updateDisplay();
+    currentStep = 4;
+    updateDots(4);
+    syncUndoBar();
+    setTimeout(() => showStep('step-gfs'), 200);
+  }
+
+  function selectGFS(code) {
+    state.gfs = code;
+    document.querySelectorAll('#step-gfs .choice-btn').forEach(b => {
+      b.classList.toggle('selected', b.textContent === code);
+    });
+    updateDisplay();
+    currentStep = 5;
+    updateDots(5);
+    syncUndoBar();
+    setTimeout(() => generateQR(), 200);
+  }
+
+  // ── QR generation ─────────────────────────────────────────────────────────
+  function getMembershipNumber() {
+    return `${state.branch}/${state.num3}/${state.num1}/${state.or}/${state.gfs}`;
+  }
+
+  function generateQR() {
+    const memberID = getMembershipNumber();
+    document.getElementById('qr-member-text').textContent = memberID;
+
+    const container = document.getElementById('qr-container');
+    container.innerHTML = '';
+
+    new QRCode(container, {
+      text: memberID,
+      width: 220,
+      height: 220,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    showStep('qr-result');
+  }
+
+  // ── QR actions ────────────────────────────────────────────────────────────
+  function getQRCanvas() {
+    return document.querySelector('#qr-container canvas') ||
+           document.querySelector('#qr-container img');
+  }
+
+  function downloadQR() {
+    const el = getQRCanvas();
+    if (!el) return toast('QR not ready');
+    let url;
+    if (el.tagName === 'CANVAS') {
+      url = el.toDataURL('image/png');
+    } else {
+      url = el.src;
+    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${getMembershipNumber().replace(/\//g, '-')}-QR.png`;
+    a.click();
+    toast('QR downloaded!');
+  }
+
+  async function shareQR() {
+    const el = getQRCanvas();
+    if (!el) return toast('QR not ready');
+
+    try {
+      let blob;
+      if (el.tagName === 'CANVAS') {
+        blob = await new Promise(res => el.toBlob(res, 'image/png'));
+      } else {
+        const res = await fetch(el.src);
+        blob = await res.blob();
+      }
+      const file = new File([blob], `${getMembershipNumber().replace(/\//g,'-')}-QR.png`, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: `Membership QR: ${getMembershipNumber()}` });
+      } else if (navigator.share) {
+        await navigator.share({ title: `Membership: ${getMembershipNumber()}`, text: getMembershipNumber() });
+      } else {
+        toast('Share not supported on this device');
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') toast('Could not share');
+    }
+  }
+
+  function copyText() {
+    const id = getMembershipNumber();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(id).then(() => toast('ID copied to clipboard!'));
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = id;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('ID copied!');
+    }
+  }
+
+  // ── Reset all ─────────────────────────────────────────────────────────────
+  function resetAll() {
+    state = { branch: '', num3: '', num1: '', or: '', gfs: '' };
+    currentStep = 0;
+    document.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('mem-number').innerHTML = '<span class="placeholder">_ _ / _ _ _ / _ / _ / _</span>';
+    updateDots(0);
+    syncUndoBar();
+    showStep('step-branch');
+    toast('🔄 Reset — start fresh');
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  updateDots(0);
+  syncUndoBar();
+</script>
+</body>
+</html>
