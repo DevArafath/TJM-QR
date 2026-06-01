@@ -1,0 +1,68 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Card Styling */
+.card {
+    border: none;
+    border-radius: 12px;
+}
+
+.stat-card {
+    border-radius: 15px;
+}
+
+/* Numpad Styling */
+.numpad .btn {
+    font-size: 1.5rem;
+    font-weight: bold;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #dee2e6;
+}
+
+.numpad .btn:active {
+    background-color: #d1d5db !important;
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    border-top: 1px solid #e5e5e5;
+    z-index: 1000;
+}
+
+.bottom-nav .nav-item {
+    text-align: center;
+    color: #adb5bd;
+    text-decoration: none;
+    flex-grow: 1;
+}
+
+.bottom-nav .nav-item i {
+    display: block;
+    font-size: 1.3rem;
+    margin-bottom: 3px;
+}
+
+.bottom-nav .nav-item span {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.bottom-nav .nav-item.active {
+    color: #198754; 
+}
+
+/* Customizing the Camera box */
+#qr-reader {
+    border: 2px dashed #198754 !important;
+    border-radius: 10px;
+    overflow: hidden;
+}
