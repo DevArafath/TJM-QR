@@ -1,11 +1,16 @@
 // --- GLOBAL VARIABLES ---
 let html5QrcodeScanner = null;
-let isProcessingScan = false; // Prevents continuous loop spamming
+let isProcessingScan = false; 
 let tempRegData = { id: '', name: '', count: 1 };
 
 // Pre-loaded databases
 let masterDB = [];
 let registeredDB = [];
+
+// Bootstrap Modal Instances
+let registerModalInstance = null;
+let issueModalInstance = null;
+let issueTimeout = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const pageId = document.body.id;
@@ -13,10 +18,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (pageId === 'page-home') {
         initDashboard();
     } else if (pageId === 'page-register') {
-        await loadMasterDB(); // Load master.json once
+        await loadMasterDB(); 
+        await loadRegisteredDB(); // Load this too to check for duplicates!
         initRegisterPage();
     } else if (pageId === 'page-issue') {
-        await loadRegisteredDB(); // Load registered.json once
+        await loadRegisteredDB();
         initIssuePage();
     }
 });
@@ -43,14 +49,14 @@ async function loadRegisteredDB() {
 }
 
 // ==========================================
-// 1. DASHBOARD LOGIC & CLEARING
+// 1. DASHBOARD LOGIC
 // ==========================================
 function initDashboard() {
     let registered = JSON.parse(localStorage.getItem('registered_families')) || {};
     let issuedLogs = JSON.parse(localStorage.getItem('issued_logs')) || {};
     const today = new Date().toISOString().split('T')[0];
 
-    let totalRegistered = Object.keys(registered).length; // Only shows pending local registrations
+    let totalRegistered = Object.keys(registered).length; 
     let todayIssues = issuedLogs[today] ? Object.keys(issuedLogs[today]).length : 0;
     
     let totalPortions = 0;
@@ -78,7 +84,7 @@ function clearAllData() {
         if (result.isConfirmed) {
             localStorage.removeItem('registered_families');
             localStorage.removeItem('issued_logs');
-            initDashboard(); // refresh
+            initDashboard(); 
             Swal.fire('Deleted!', 'Local storage has been cleared.', 'success');
         }
     });
@@ -114,10 +120,8 @@ function setupScanner(onSuccessCallback) {
             { facingMode: "environment" },
             { fps: 10, qrbox: { width: 250, height: 250 } },
             (decodedText) => {
-                // If currently processing a scan, ignore new frames
-                if (isProcessingScan) return;
+                if (isProcessingScan) return; // Prevent spamming
                 isProcessingScan = true; 
-                
                 onSuccessCallback(decodedText);
             },
             (error) => { /* ignore empty frames silently */ }
@@ -148,6 +152,15 @@ function setupScanner(onSuccessCallback) {
 function initRegisterPage() {
     setupScanner(handleRegistrationScan);
 
+    // Initialize Modal
+    const regModalEl = document.getElementById('registerModal');
+    registerModalInstance = new bootstrap.Modal(regModalEl);
+
+    // Whenever modal closes (Save, Cancel, or clicking outside), resume scanning!
+    regModalEl.addEventListener('hidden.bs.modal', () => {
+        isProcessingScan = false;
+    });
+
     // Setup Numpad clicks
     document.querySelectorAll('.num-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -157,7 +170,7 @@ function initRegisterPage() {
         });
     });
 
-    // Save button
+    // Save button inside modal
     document.getElementById('btn-save-reg').addEventListener('click', () => {
         let registered = JSON.parse(localStorage.getItem('registered_families')) || {};
         registered[tempRegData.id] = {
@@ -175,14 +188,7 @@ function initRegisterPage() {
             showConfirmButton: false
         });
 
-        document.getElementById('register-details').classList.add('d-none');
-        isProcessingScan = false; // Allow camera to scan next person immediately
-    });
-
-    // Cancel Button
-    document.getElementById('btn-cancel-reg').addEventListener('click', () => {
-        document.getElementById('register-details').classList.add('d-none');
-        isProcessingScan = false; // Resume scanning without saving
+        registerModalInstance.hide(); // Hiding modal automatically triggers the 'hidden' event to resume scanning
     });
 }
 
@@ -190,26 +196,28 @@ function handleRegistrationScan(qrCode) {
     const person = masterDB.find(p => p.id === qrCode);
 
     if (!person) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Not Found',
-            text: 'QR Code not in Master JSON.',
-            timer: 2500,
-            showConfirmButton: false
-        });
-        // Resume scanning after error disappears
+        Swal.fire({ icon: 'error', title: 'Not Found', text: 'QR Code not in Master List.', timer: 2500, showConfirmButton: false });
         setTimeout(() => { isProcessingScan = false; }, 2500);
         return;
     }
 
-    // Display details and await manual save
+    // CHECK DUPLICATES: Is it in registered.json OR local storage already?
+    const alreadyInJSON = registeredDB.find(f => f.id === qrCode);
+    const localReg = JSON.parse(localStorage.getItem('registered_families')) || {};
+    
+    if (alreadyInJSON || localReg[qrCode]) {
+        Swal.fire({ icon: 'warning', title: 'Already Registered', text: 'This family is already registered.', timer: 2500, showConfirmButton: false });
+        setTimeout(() => { isProcessingScan = false; }, 2500);
+        return;
+    }
+
+    // Prepare data and show modal
     tempRegData = { id: qrCode, name: person.name, count: 1 };
     document.getElementById('reg-name').innerText = person.name;
     document.getElementById('reg-id').innerText = qrCode;
     document.getElementById('reg-count-display').innerText = '1';
     
-    document.getElementById('register-details').classList.remove('d-none');
-    // Camera is still physically running, but isProcessingScan = true prevents new reads.
+    registerModalInstance.show();
 }
 
 // ==========================================
@@ -217,21 +225,23 @@ function handleRegistrationScan(qrCode) {
 // ==========================================
 function initIssuePage() {
     setupScanner(handleDistributionScan);
+    
+    // Initialize Modal
+    const issueModalEl = document.getElementById('issueModal');
+    issueModalInstance = new bootstrap.Modal(issueModalEl);
+
+    // Resume scanning when success modal closes
+    issueModalEl.addEventListener('hidden.bs.modal', () => {
+        isProcessingScan = false;
+    });
 }
 
 function handleDistributionScan(qrCode) {
-    // Only look in the finalized JSON file as requested
     let family = registeredDB.find(f => f.id === qrCode);
 
     if (!family) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Not Registered',
-            text: 'This family is not in registered.json',
-            timer: 2500,
-            showConfirmButton: false
-        });
-        setTimeout(() => { isProcessingScan = false; }, 2500); // Resume scanner
+        Swal.fire({ icon: 'error', title: 'Not Registered', text: 'This family is not in registered.json', timer: 2500, showConfirmButton: false });
+        setTimeout(() => { isProcessingScan = false; }, 2500);
         return;
     }
 
@@ -239,20 +249,14 @@ function handleDistributionScan(qrCode) {
     let issuedLogs = JSON.parse(localStorage.getItem('issued_logs')) || {};
     if (!issuedLogs[today]) issuedLogs[today] = {};
 
-    // Block Duplicate Scan
+    // Block Duplicate Scan today
     if (issuedLogs[today][qrCode]) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Already Issued!',
-            text: 'They already received porridge today.',
-            timer: 2500,
-            showConfirmButton: false
-        });
-        setTimeout(() => { isProcessingScan = false; }, 2500); // Resume scanner
+        Swal.fire({ icon: 'warning', title: 'Already Issued!', text: 'They already received porridge today.', timer: 2500, showConfirmButton: false });
+        setTimeout(() => { isProcessingScan = false; }, 2500);
         return;
     }
 
-    // Save Issue Record to local storage
+    // Save Issue Record
     issuedLogs[today][qrCode] = {
         name: family.name,
         count: family.count,
@@ -260,18 +264,17 @@ function handleDistributionScan(qrCode) {
     };
     localStorage.setItem('issued_logs', JSON.stringify(issuedLogs));
 
-    // Show Success UI
+    // Populate and show the Success Modal
     document.getElementById('dist-name').innerText = family.name;
     document.getElementById('dist-id').innerText = qrCode;
     document.getElementById('dist-count').innerText = family.count;
     
-    const detailsCard = document.getElementById('issue-details');
-    detailsCard.classList.remove('d-none');
+    issueModalInstance.show();
 
-    // Automatically hide success UI and resume scanner after 2.5 seconds
-    setTimeout(() => {
-        detailsCard.classList.add('d-none');
-        isProcessingScan = false; // Accepts next scan seamlessly
+    // Auto close modal after 2.5 seconds (which triggers the hidden event, resuming the scanner)
+    clearTimeout(issueTimeout);
+    issueTimeout = setTimeout(() => {
+        issueModalInstance.hide();
     }, 2500);
 }
 

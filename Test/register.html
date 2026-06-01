@@ -27,41 +27,8 @@
             </div>
         </div>
 
-        <!-- Details Form -->
-        <div id="register-details" class="card shadow-sm d-none mb-3 border-primary">
-            <div class="card-body text-center">
-                <h4 class="text-primary" id="reg-name">Name</h4>
-                <p class="text-muted" id="reg-id">ID</p>
-                <hr>
-                <h6>Select Family Count</h6>
-                <h1 class="text-success mb-3 fw-bold" id="reg-count-display">1</h1>
-                
-                <div class="numpad">
-                    <div class="row g-2 mb-2">
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">1</button></div>
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">2</button></div>
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">3</button></div>
-                    </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">4</button></div>
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">5</button></div>
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">6</button></div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">7</button></div>
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">8</button></div>
-                        <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">9</button></div>
-                    </div>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-secondary w-25 py-2" id="btn-cancel-reg"><i class="fa-solid fa-xmark"></i></button>
-                    <button class="btn btn-success w-75 py-2 fs-5" id="btn-save-reg"><i class="fa-solid fa-save"></i> Save</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Utilities -->
-        <div class="row g-2 mt-2">
+        <div class="row g-2 mt-4">
             <div class="col-12">
                 <button class="btn btn-dark w-100 py-2" onclick="exportExcel('registered')"><i class="fa-solid fa-file-excel"></i> Export Pending Registrations</button>
             </div>
@@ -71,12 +38,53 @@
         </div>
     </div>
 
+    <!-- REGISTRATION MODAL -->
+    <div class="modal fade" id="registerModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-primary">
+                <div class="modal-body text-center p-4">
+                    <h4 class="text-primary mb-0" id="reg-name">Name</h4>
+                    <p class="text-muted small mb-3" id="reg-id">ID</p>
+                    <hr>
+                    <h6>Select Family Count</h6>
+                    <h1 class="text-success mb-3 fw-bold" id="reg-count-display">1</h1>
+                    
+                    <div class="numpad">
+                        <div class="row g-2 mb-2">
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">1</button></div>
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">2</button></div>
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">3</button></div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">4</button></div>
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">5</button></div>
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">6</button></div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">7</button></div>
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">8</button></div>
+                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">9</button></div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-secondary w-25 py-2" data-bs-dismiss="modal"><i class="fa-solid fa-xmark"></i></button>
+                        <button class="btn btn-success w-75 py-2 fs-5" id="btn-save-reg"><i class="fa-solid fa-save"></i> Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
     <div class="bottom-nav bg-white shadow">
         <a href="index.html" class="nav-item"><i class="fa-solid fa-home"></i><span>Home</span></a>
         <a href="register.html" class="nav-item active"><i class="fa-solid fa-user-plus"></i><span>Register</span></a>
         <a href="issue.html" class="nav-item"><i class="fa-solid fa-qrcode"></i><span>Issue</span></a>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
