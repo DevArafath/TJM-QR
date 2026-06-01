@@ -7,69 +7,442 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-</head>
-<body id="page-register" class="bg-light pb-5">
+    <style>
+        :root {
+            --emerald:     #1a6b45;
+            --emerald-mid: #1e7e50;
+            --emerald-lt:  #25a066;
+            --gold:        #c9a84c;
+            --gold-lt:     #e0c06a;
+            --cream:       #faf7f0;
+            --ink:         #1a2e1f;
+            --muted:       #6b7f6e;
+            --card-bg:     #ffffff;
+            --border:      #d4e8db;
+        }
 
-    <nav class="navbar navbar-dark bg-success shadow-sm">
-        <div class="container">
-            <span class="navbar-brand mb-0 h1">Register Family</span>
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--cream);
+            font-family: 'Lato', sans-serif;
+            color: var(--ink);
+            padding-bottom: 90px;
+            min-height: 100vh;
+        }
+
+        /* ── Geometric SVG background ─────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%231a6b45' stroke-width='0.4' opacity='0.12'%3E%3Cpolygon points='40,2 78,20 78,60 40,78 2,60 2,20'/%3E%3Cpolygon points='40,14 66,28 66,52 40,66 14,52 14,28'/%3E%3Cline x1='40' y1='2' x2='40' y2='78'/%3E%3Cline x1='2' y1='20' x2='78' y2='60'/%3E%3Cline x1='78' y1='20' x2='2' y2='60'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 80px 80px;
+        }
+
+        /* ── Navbar ───────────────────────────────────────────────── */
+        .navbar-islamic {
+            background: linear-gradient(135deg, var(--emerald) 0%, #0f4a2e 100%);
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(26,107,69,0.35);
+        }
+        .navbar-islamic::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--gold), var(--gold-lt), var(--gold), transparent);
+        }
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 20px;
+        }
+        .nav-emblem {
+            width: 44px; height: 44px;
+            background: rgba(201,168,76,0.15);
+            border: 1.5px solid var(--gold);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .nav-emblem svg { width: 24px; height: 24px; fill: var(--gold); }
+        .nav-title { line-height: 1.2; }
+        .nav-title .arabic { font-family: 'Amiri', serif; font-size: 1rem; color: var(--gold-lt); display: block; }
+        .nav-title .latin  { font-size: .8rem; color: rgba(255,255,255,.7); letter-spacing: .08em; text-transform: uppercase; }
+
+        /* ── Section heading ──────────────────────────────────────── */
+        .section-heading {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 14px;
+        }
+        .section-heading .line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--gold), transparent); }
+        .section-heading .line.rev { background: linear-gradient(90deg, transparent, var(--gold)); }
+        .section-heading span {
+            font-family: 'Amiri', serif;
+            font-size: .95rem;
+            color: var(--emerald);
+            letter-spacing: .04em;
+            white-space: nowrap;
+        }
+
+        /* ── Cards ────────────────────────────────────────────────── */
+        .islamic-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 18px rgba(26,107,69,.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .islamic-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--emerald), var(--gold), var(--emerald));
+        }
+        .card-inner { padding: 20px; }
+
+        /* ── Scanner ──────────────────────────────────────────────── */
+        #qr-reader {
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px dashed var(--border);
+        }
+        #qr-reader video { border-radius: 10px; }
+
+        .scanner-placeholder {
+            padding: 36px 20px;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            color: var(--muted);
+        }
+        .scanner-placeholder .hex-icon {
+            width: 72px; height: 72px;
+            background: linear-gradient(135deg, #e8f5ee, #d4e8db);
+            clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 6px;
+        }
+        .scanner-placeholder .hex-icon i { font-size: 1.8rem; color: var(--emerald); }
+        .scanner-placeholder p { font-size: .85rem; text-align: center; max-width: 220px; margin: 0; }
+
+        /* ── Buttons ──────────────────────────────────────────────── */
+        .btn-emerald {
+            background: linear-gradient(135deg, var(--emerald-mid), var(--emerald));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            box-shadow: 0 4px 14px rgba(26,107,69,.3);
+            transition: all .2s;
+        }
+        .btn-emerald:hover { background: linear-gradient(135deg, var(--emerald-lt), var(--emerald-mid)); color: #fff; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(26,107,69,.4); }
+
+        .btn-gold-outline {
+            background: transparent;
+            color: var(--gold);
+            border: 1.5px solid var(--gold);
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all .2s;
+        }
+        .btn-gold-outline:hover { background: var(--gold); color: #fff; }
+
+        .btn-danger-outline {
+            background: transparent;
+            color: #c0392b;
+            border: 1.5px solid #e0b0ac;
+            border-radius: 10px;
+            transition: all .2s;
+        }
+        .btn-danger-outline:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+
+        /* ── Recent list ──────────────────────────────────────────── */
+        .recent-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+
+        .recent-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 12px 16px;
+            background: var(--cream);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: box-shadow .2s;
+        }
+        .recent-item:hover { box-shadow: 0 2px 12px rgba(26,107,69,.12); }
+
+        .item-avatar {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--emerald-lt), var(--emerald));
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .item-info { flex: 1; min-width: 0; }
+        .item-name { font-weight: 700; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+        .item-id   { font-size: .75rem; color: var(--muted); }
+        .item-badge {
+            background: linear-gradient(135deg, var(--emerald), var(--emerald-mid));
+            color: #fff;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: .78rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .item-time  { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+
+        .empty-state {
+            text-align: center; padding: 32px 16px; color: var(--muted);
+        }
+        .empty-state i { font-size: 2rem; margin-bottom: 8px; color: var(--border); display: block; }
+        .empty-state p { font-size: .85rem; margin: 0; }
+
+        /* ── MODAL ────────────────────────────────────────────────── */
+        .modal-content {
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,.2);
+        }
+        .modal-header-islamic {
+            background: linear-gradient(135deg, var(--emerald) 0%, #0f4a2e 100%);
+            padding: 20px 24px 16px;
+            position: relative;
+        }
+        .modal-header-islamic::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+        }
+        .modal-header-islamic h4 { color: #fff; font-family: 'Amiri', serif; font-size: 1.3rem; margin: 0; }
+        .modal-header-islamic p  { color: var(--gold-lt); font-size: .8rem; margin: 4px 0 0; }
+
+        .modal-body-islamic { padding: 24px; }
+
+        .count-display {
+            background: linear-gradient(135deg, #e8f5ee, #d4eadd);
+            border: 2px solid var(--emerald-lt);
+            border-radius: 16px;
+            padding: 16px;
+            font-family: 'Amiri', serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--emerald);
+            text-align: center;
+            line-height: 1;
+            margin-bottom: 20px;
+        }
+        .count-display small { display: block; font-size: .7rem; font-family: 'Lato', sans-serif; color: var(--muted); margin-top: 4px; letter-spacing: .08em; text-transform: uppercase; }
+
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .num-btn {
+            aspect-ratio: 1;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            background: var(--cream);
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--ink);
+            cursor: pointer;
+            transition: all .15s;
+            font-family: 'Amiri', serif;
+        }
+        .num-btn:hover { background: var(--emerald); color: #fff; border-color: var(--emerald); transform: scale(.96); }
+        .num-btn:active { transform: scale(.92); }
+
+        .btn-cancel-modal {
+            background: var(--cream);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            color: var(--muted);
+            padding: 12px;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .btn-cancel-modal:hover { background: #fee; border-color: #e0b0ac; color: #c0392b; }
+
+        .btn-save-modal {
+            background: linear-gradient(135deg, var(--emerald-mid), var(--emerald));
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            padding: 12px 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(26,107,69,.3);
+            transition: all .2s;
+            flex: 1;
+        }
+        .btn-save-modal:hover { background: linear-gradient(135deg, var(--emerald-lt), var(--emerald-mid)); transform: translateY(-1px); }
+
+        /* ── Bottom Nav ───────────────────────────────────────────── */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: #fff;
+            display: flex;
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 20px rgba(26,107,69,.1);
+            z-index: 1000;
+        }
+        .bottom-nav a {
+            flex: 1;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 10px 0 8px;
+            text-decoration: none;
+            color: var(--muted);
+            font-size: .68rem;
+            letter-spacing: .03em;
+            transition: color .2s;
+            gap: 3px;
+        }
+        .bottom-nav a i { font-size: 1.2rem; }
+        .bottom-nav a.active { color: var(--emerald); font-weight: 700; }
+        .bottom-nav a.active i { color: var(--emerald); }
+        .bottom-nav a:not(.active):hover { color: var(--emerald-mid); }
+
+        /* ── Utility ──────────────────────────────────────────────── */
+        .z1 { position: relative; z-index: 1; }
+        .page-wrap { padding: 20px 16px; position: relative; z-index: 1; }
+        .divider-gold { border: none; border-top: 1px solid var(--gold); opacity: .35; margin: 16px 0; }
+    </style>
+</head>
+<body id="page-register">
+
+    <!-- Navbar -->
+    <nav class="navbar-islamic">
+        <div class="nav-inner container">
+            <div class="nav-emblem">
+                <!-- Star/crescent SVG -->
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+                </svg>
+            </div>
+            <div class="nav-title">
+                <span class="arabic">تسجيل الأسرة</span>
+                <span class="latin">Register Family</span>
+            </div>
         </div>
     </nav>
 
-    <div class="container mt-4 mb-5 pb-4">
-        <!-- Scanner Area -->
-        <div class="card shadow-sm mb-3">
-            <div class="card-body text-center">
-                <div id="qr-reader" style="width: 100%;"></div>
-                <button class="btn btn-outline-primary mt-3" id="btn-start-scan"><i class="fa-solid fa-camera"></i> Start Scanner</button>
-                <button class="btn btn-outline-danger mt-3 d-none" id="btn-stop-scan"><i class="fa-solid fa-stop"></i> Stop Camera</button>
+    <div class="page-wrap container">
+
+        <!-- Scanner Card -->
+        <div class="section-heading mt-2">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-camera" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>QR Scanner</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-4">
+            <div class="card-inner">
+                <div id="qr-reader" style="width:100%">
+                    <div class="scanner-placeholder" id="scanner-ph">
+                        <div class="hex-icon"><i class="fa-solid fa-camera"></i></div>
+                        <p>Tap "Start Scanner" to activate the camera and scan a family QR code</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-emerald flex-fill py-2" id="btn-start-scan">
+                        <i class="fa-solid fa-camera me-1"></i> Start Scanner
+                    </button>
+                    <button class="btn btn-danger-outline flex-fill py-2 d-none" id="btn-stop-scan">
+                        <i class="fa-solid fa-stop me-1"></i> Stop Camera
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Utilities -->
-        <div class="row g-2 mt-4">
-            <div class="col-12">
-                <button class="btn btn-dark w-100 py-2" onclick="exportExcel('registered')"><i class="fa-solid fa-file-excel"></i> Export Pending Registrations</button>
-            </div>
-            <div class="col-12">
-                <button class="btn btn-outline-danger w-100 py-2" onclick="clearRegistrations()"><i class="fa-solid fa-eraser"></i> Clear Registrations Data</button>
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-gear" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Utilities</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-4">
+            <div class="card-inner">
+                <div class="d-flex flex-column gap-2">
+                    <button class="btn btn-gold-outline py-2 w-100" onclick="exportExcel('registered')">
+                        <i class="fa-solid fa-file-excel me-2"></i>Export Pending Registrations
+                    </button>
+                    <button class="btn btn-danger-outline py-2 w-100" onclick="clearRegistrations()">
+                        <i class="fa-solid fa-eraser me-2"></i>Clear Registrations Data
+                    </button>
+                </div>
             </div>
         </div>
+
+        <!-- Recent Registrations -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-clock-rotate-left" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Recent Registrations</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card">
+            <div class="card-inner">
+                <ul class="recent-list" id="recent-list">
+                    <li>
+                        <div class="empty-state">
+                            <i class="fa-solid fa-user-clock"></i>
+                            <p>No registrations yet.<br>Scan a QR code to get started.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
     </div>
 
-    <!-- REGISTRATION MODAL -->
+    <!-- ── REGISTRATION MODAL ─────────────────────────────────────── -->
     <div class="modal fade" id="registerModal" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-primary">
-                <div class="modal-body text-center p-4">
-                    <h4 class="text-primary mb-0" id="reg-name">Name</h4>
-                    <p class="text-muted small mb-3" id="reg-id">ID</p>
-                    <hr>
-                    <h6>Select Family Count</h6>
-                    <h1 class="text-success mb-3 fw-bold" id="reg-count-display">1</h1>
-                    
-                    <div class="numpad">
-                        <div class="row g-2 mb-2">
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">1</button></div>
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">2</button></div>
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">3</button></div>
-                        </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">4</button></div>
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">5</button></div>
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">6</button></div>
-                        </div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">7</button></div>
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">8</button></div>
-                            <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">9</button></div>
-                        </div>
+            <div class="modal-content">
+                <div class="modal-header-islamic">
+                    <h4 id="reg-name">Family Name</h4>
+                    <p id="reg-id">ID</p>
+                </div>
+                <div class="modal-body-islamic">
+                    <div class="count-display" id="reg-count-display">
+                        1
+                        <small>Family Members</small>
                     </div>
-                    
+
+                    <div class="numpad">
+                        <button class="num-btn">1</button>
+                        <button class="num-btn">2</button>
+                        <button class="num-btn">3</button>
+                        <button class="num-btn">4</button>
+                        <button class="num-btn">5</button>
+                        <button class="num-btn">6</button>
+                        <button class="num-btn">7</button>
+                        <button class="num-btn">8</button>
+                        <button class="num-btn">9</button>
+                    </div>
+
                     <div class="d-flex gap-2">
-                        <button class="btn btn-secondary w-25 py-2" data-bs-dismiss="modal"><i class="fa-solid fa-xmark"></i></button>
-                        <button class="btn btn-success w-75 py-2 fs-5" id="btn-save-reg"><i class="fa-solid fa-save"></i> Save</button>
+                        <button class="btn-cancel-modal" data-bs-dismiss="modal" style="border-radius:12px;padding:12px 16px;">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <button class="btn-save-modal" id="btn-save-reg">
+                            <i class="fa-solid fa-check me-1"></i> Save Registration
+                        </button>
                     </div>
                 </div>
             </div>
@@ -77,8 +450,8 @@
     </div>
 
     <!-- Bottom Navigation -->
-    <div class="bottom-nav bg-white shadow">
-        <a href="index.html" class="nav-item"><i class="fa-solid fa-home"></i><span>Home</span></a>
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item"><i class="fa-solid fa-house"></i><span>Home</span></a>
         <a href="register.html" class="nav-item active"><i class="fa-solid fa-user-plus"></i><span>Register</span></a>
         <a href="issue.html" class="nav-item"><i class="fa-solid fa-qrcode"></i><span>Issue</span></a>
     </div>
@@ -89,5 +462,73 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
+
+    <script>
+    /* ── Recent Registrations UI helper ──────────────────────────── */
+    // This watches localStorage for changes made by app.js and renders the list.
+    // It assumes app.js stores registrations under the key "registered"
+    // as a JSON array of objects with at least: name, id, count, timestamp.
+    // Adjust key/field names below to match your actual app.js data shape.
+
+    const STORAGE_KEY = 'registered'; // ← change if app.js uses a different key
+
+    function initials(name) {
+        if (!name) return '?';
+        const parts = name.trim().split(/\s+/);
+        return parts.length >= 2
+            ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+    }
+
+    function timeAgo(ts) {
+        if (!ts) return '';
+        const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+        if (diff < 60)    return 'Just now';
+        if (diff < 3600)  return Math.floor(diff/60) + ' min ago';
+        if (diff < 86400) return Math.floor(diff/3600) + ' hr ago';
+        return new Date(ts).toLocaleDateString();
+    }
+
+    function renderRecentList() {
+        const ul = document.getElementById('recent-list');
+        let data = [];
+        try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) {}
+
+        if (!data.length) {
+            ul.innerHTML = `<li><div class="empty-state">
+                <i class="fa-solid fa-user-clock"></i>
+                <p>No registrations yet.<br>Scan a QR code to get started.</p>
+            </div></li>`;
+            return;
+        }
+
+        // Show latest 20, newest first
+        const items = [...data].reverse().slice(0, 20);
+        ul.innerHTML = items.map(r => `
+            <li class="recent-item">
+                <div class="item-avatar">${initials(r.name || r.fullName || '')}</div>
+                <div class="item-info">
+                    <div class="item-name">${r.name || r.fullName || 'Unknown'}</div>
+                    <div class="item-id">${r.id || r.familyId || ''}</div>
+                    ${r.timestamp ? `<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> ${timeAgo(r.timestamp)}</div>` : ''}
+                </div>
+                <div class="item-badge">
+                    <i class="fa-solid fa-users" style="font-size:.7rem;margin-right:3px"></i>${r.count || r.familyCount || 1}
+                </div>
+            </li>
+        `).join('');
+    }
+
+    // Initial render
+    renderRecentList();
+
+    // Re-render whenever app.js saves to localStorage
+    window.addEventListener('storage', e => {
+        if (e.key === STORAGE_KEY) renderRecentList();
+    });
+
+    // Also expose a global so app.js can call refreshRecentList() after saving
+    window.refreshRecentList = renderRecentList;
+    </script>
 </body>
 </html>
