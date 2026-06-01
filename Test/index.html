@@ -6,6 +6,7 @@
     <title>Dashboard - Porridge Distribution</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body id="page-home" class="bg-light pb-5">
@@ -24,7 +25,7 @@
                     <div class="card-body text-center">
                         <i class="fa-solid fa-users fa-2x mb-2"></i>
                         <h5 class="card-title" id="stat-registered">0</h5>
-                        <p class="card-text small">Registered Families</p>
+                        <p class="card-text small">Pending Registrations</p>
                     </div>
                 </div>
             </div>
@@ -37,25 +38,32 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 mt-4">
+            <div class="col-12 mt-3">
                 <div class="card shadow-sm border-success">
                     <div class="card-body">
                         <h5 class="card-title text-success"><i class="fa-solid fa-chart-line"></i> Today's Summary</h5>
                         <p class="mb-1 text-dark fs-5">Total Portions Fed Today: <strong class="text-success fs-3" id="stat-portions">0</strong></p>
-                        <p class="text-muted small mt-2">Analytics update in real-time based on local logs.</p>
                     </div>
                 </div>
+            </div>
+
+            <!-- RESET BUTTON -->
+            <div class="col-12 mt-4">
+                <button class="btn btn-outline-danger w-100 py-2 shadow-sm" onclick="clearAllData()">
+                    <i class="fa-solid fa-trash-can"></i> Factory Reset (Clear Local Data)
+                </button>
+                <p class="text-muted small text-center mt-2">This will clear today's issues and pending registrations from this device.</p>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Navigation -->
     <div class="bottom-nav bg-white shadow">
         <a href="index.html" class="nav-item active"><i class="fa-solid fa-home"></i><span>Home</span></a>
         <a href="register.html" class="nav-item"><i class="fa-solid fa-user-plus"></i><span>Register</span></a>
         <a href="issue.html" class="nav-item"><i class="fa-solid fa-qrcode"></i><span>Issue</span></a>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="app.js"></script>
 </body>
 </html>

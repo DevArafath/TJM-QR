@@ -23,11 +23,11 @@
             <div class="card-body text-center">
                 <div id="qr-reader" style="width: 100%;"></div>
                 <button class="btn btn-outline-primary mt-3" id="btn-start-scan"><i class="fa-solid fa-camera"></i> Start Scanner</button>
-                <button class="btn btn-outline-danger mt-3 d-none" id="btn-stop-scan"><i class="fa-solid fa-stop"></i> Stop</button>
+                <button class="btn btn-outline-danger mt-3 d-none" id="btn-stop-scan"><i class="fa-solid fa-stop"></i> Stop Camera</button>
             </div>
         </div>
 
-        <!-- Details Form (Hidden initially) -->
+        <!-- Details Form -->
         <div id="register-details" class="card shadow-sm d-none mb-3 border-primary">
             <div class="card-body text-center">
                 <h4 class="text-primary" id="reg-name">Name</h4>
@@ -53,14 +53,24 @@
                         <div class="col-4"><button class="btn btn-light w-100 py-3 num-btn">9</button></div>
                     </div>
                 </div>
-                <button class="btn btn-success w-100 py-3 fs-5" id="btn-save-reg"><i class="fa-solid fa-save"></i> Save Record</button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-secondary w-25 py-2" id="btn-cancel-reg"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="btn btn-success w-75 py-2 fs-5" id="btn-save-reg"><i class="fa-solid fa-save"></i> Save</button>
+                </div>
             </div>
         </div>
 
-        <button class="btn btn-secondary w-100 mt-2" onclick="exportExcel('registered')"><i class="fa-solid fa-file-excel"></i> Export Registrations</button>
+        <!-- Utilities -->
+        <div class="row g-2 mt-2">
+            <div class="col-12">
+                <button class="btn btn-dark w-100 py-2" onclick="exportExcel('registered')"><i class="fa-solid fa-file-excel"></i> Export Pending Registrations</button>
+            </div>
+            <div class="col-12">
+                <button class="btn btn-outline-danger w-100 py-2" onclick="clearRegistrations()"><i class="fa-solid fa-eraser"></i> Clear Registrations Data</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Bottom Navigation -->
     <div class="bottom-nav bg-white shadow">
         <a href="index.html" class="nav-item"><i class="fa-solid fa-home"></i><span>Home</span></a>
         <a href="register.html" class="nav-item active"><i class="fa-solid fa-user-plus"></i><span>Register</span></a>

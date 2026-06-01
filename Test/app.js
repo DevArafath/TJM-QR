@@ -1,39 +1,56 @@
 // --- GLOBAL VARIABLES ---
 let html5QrcodeScanner = null;
+let isProcessingScan = false; // Prevents continuous loop spamming
 let tempRegData = { id: '', name: '', count: 1 };
 
-document.addEventListener('DOMContentLoaded', () => {
+// Pre-loaded databases
+let masterDB = [];
+let registeredDB = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
     const pageId = document.body.id;
 
     if (pageId === 'page-home') {
         initDashboard();
     } else if (pageId === 'page-register') {
+        await loadMasterDB(); // Load master.json once
         initRegisterPage();
     } else if (pageId === 'page-issue') {
+        await loadRegisteredDB(); // Load registered.json once
         initIssuePage();
     }
 });
 
 // ==========================================
-// 1. DASHBOARD LOGIC
+// DATA LOADING
 // ==========================================
-async function initDashboard() {
+async function loadMasterDB() {
+    try {
+        const res = await fetch('master.json');
+        masterDB = await res.json();
+    } catch (e) {
+        console.error("Could not load master.json");
+    }
+}
+
+async function loadRegisteredDB() {
+    try {
+        const res = await fetch('registered.json');
+        registeredDB = await res.json();
+    } catch (e) {
+        console.error("Could not load registered.json");
+    }
+}
+
+// ==========================================
+// 1. DASHBOARD LOGIC & CLEARING
+// ==========================================
+function initDashboard() {
     let registered = JSON.parse(localStorage.getItem('registered_families')) || {};
     let issuedLogs = JSON.parse(localStorage.getItem('issued_logs')) || {};
     const today = new Date().toISOString().split('T')[0];
 
-    // Combine local storage with registered.json
-    try {
-        const res = await fetch('registered.json');
-        const jsonDb = await res.json();
-        jsonDb.forEach(item => {
-            if (!registered[item.id]) registered[item.id] = item;
-        });
-    } catch (e) {
-        console.log("No registered.json found or CORS blocked");
-    }
-
-    let totalRegistered = Object.keys(registered).length;
+    let totalRegistered = Object.keys(registered).length; // Only shows pending local registrations
     let todayIssues = issuedLogs[today] ? Object.keys(issuedLogs[today]).length : 0;
     
     let totalPortions = 0;
@@ -48,8 +65,44 @@ async function initDashboard() {
     document.getElementById('stat-portions').innerText = totalPortions;
 }
 
+function clearAllData() {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "This will wipe all registration and issued logs from this device!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            localStorage.removeItem('registered_families');
+            localStorage.removeItem('issued_logs');
+            initDashboard(); // refresh
+            Swal.fire('Deleted!', 'Local storage has been cleared.', 'success');
+        }
+    });
+}
+
+function clearRegistrations() {
+    Swal.fire({
+        title: 'Clear pending registrations?',
+        text: "Make sure you exported to Excel first!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, clear it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            localStorage.removeItem('registered_families');
+            Swal.fire('Cleared!', 'Registration storage is empty.', 'success');
+        }
+    });
+}
+
 // ==========================================
-// 2. SCANNER UTILITIES
+// 2. CONTINUOUS SCANNER SETUP
 // ==========================================
 function setupScanner(onSuccessCallback) {
     const startBtn = document.getElementById('btn-start-scan');
@@ -61,10 +114,13 @@ function setupScanner(onSuccessCallback) {
             { facingMode: "environment" },
             { fps: 10, qrbox: { width: 250, height: 250 } },
             (decodedText) => {
-                stopScanner();
+                // If currently processing a scan, ignore new frames
+                if (isProcessingScan) return;
+                isProcessingScan = true; 
+                
                 onSuccessCallback(decodedText);
             },
-            (error) => { /* ignore empty frames */ }
+            (error) => { /* ignore empty frames silently */ }
         ).catch(err => {
             Swal.fire('Camera Error', 'Make sure you granted camera permissions.', 'error');
         });
@@ -73,18 +129,17 @@ function setupScanner(onSuccessCallback) {
         stopBtn.classList.remove('d-none');
     });
 
-    stopBtn.addEventListener('click', stopScanner);
-}
-
-function stopScanner() {
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            html5QrcodeScanner.clear();
-            html5QrcodeScanner = null;
-        });
-    }
-    document.getElementById('btn-start-scan').classList.remove('d-none');
-    document.getElementById('btn-stop-scan').classList.add('d-none');
+    stopBtn.addEventListener('click', () => {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                html5QrcodeScanner.clear();
+                html5QrcodeScanner = null;
+            });
+        }
+        startBtn.classList.remove('d-none');
+        stopBtn.classList.add('d-none');
+        isProcessingScan = false;
+    });
 }
 
 // ==========================================
@@ -115,69 +170,68 @@ function initRegisterPage() {
         Swal.fire({
             icon: 'success',
             title: 'Saved!',
-            text: `${tempRegData.name} saved with ${tempRegData.count} members.`,
-            timer: 2000,
+            text: `${tempRegData.name} saved.`,
+            timer: 1500,
             showConfirmButton: false
         });
 
         document.getElementById('register-details').classList.add('d-none');
+        isProcessingScan = false; // Allow camera to scan next person immediately
+    });
+
+    // Cancel Button
+    document.getElementById('btn-cancel-reg').addEventListener('click', () => {
+        document.getElementById('register-details').classList.add('d-none');
+        isProcessingScan = false; // Resume scanning without saving
     });
 }
 
-async function handleRegistrationScan(qrCode) {
-    try {
-        const response = await fetch('master.json');
-        const masterData = await response.json();
-        
-        // Find by ID
-        const person = masterData.find(p => p.id === qrCode);
+function handleRegistrationScan(qrCode) {
+    const person = masterDB.find(p => p.id === qrCode);
 
-        if (!person) {
-            Swal.fire('Not Found', 'QR Code not found in Master JSON.', 'error');
-            return;
-        }
-
-        // Display details
-        tempRegData = { id: qrCode, name: person.name, count: 1 };
-        document.getElementById('reg-name').innerText = person.name;
-        document.getElementById('reg-id').innerText = qrCode;
-        document.getElementById('reg-count-display').innerText = '1';
-        
-        document.getElementById('register-details').classList.remove('d-none');
-
-    } catch (error) {
-        Swal.fire('Error', 'Could not load master.json. Are you running on a server?', 'error');
+    if (!person) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Not Found',
+            text: 'QR Code not in Master JSON.',
+            timer: 2500,
+            showConfirmButton: false
+        });
+        // Resume scanning after error disappears
+        setTimeout(() => { isProcessingScan = false; }, 2500);
+        return;
     }
+
+    // Display details and await manual save
+    tempRegData = { id: qrCode, name: person.name, count: 1 };
+    document.getElementById('reg-name').innerText = person.name;
+    document.getElementById('reg-id').innerText = qrCode;
+    document.getElementById('reg-count-display').innerText = '1';
+    
+    document.getElementById('register-details').classList.remove('d-none');
+    // Camera is still physically running, but isProcessingScan = true prevents new reads.
 }
 
 // ==========================================
-// 4. ISSUE PAGE LOGIC
+// 4. ISSUE PAGE LOGIC (CONTINUOUS SCAN)
 // ==========================================
 function initIssuePage() {
     setupScanner(handleDistributionScan);
 }
 
-async function handleDistributionScan(qrCode) {
-    let family = null;
-    
-    // 1. Check Local Storage First (Recent registrations)
-    let localRegistered = JSON.parse(localStorage.getItem('registered_families')) || {};
-    if (localRegistered[qrCode]) {
-        family = localRegistered[qrCode];
-    } 
-    // 2. Check registered.json (Past Excel imports)
-    else {
-        try {
-            const res = await fetch('registered.json');
-            const pastData = await res.json();
-            family = pastData.find(f => f.id === qrCode);
-        } catch(e) {
-            console.error("Error loading registered.json");
-        }
-    }
+function handleDistributionScan(qrCode) {
+    // Only look in the finalized JSON file as requested
+    let family = registeredDB.find(f => f.id === qrCode);
 
     if (!family) {
-        Swal.fire('Not Registered', 'This family has not been registered.', 'warning');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Not Registered',
+            text: 'This family is not in registered.json',
+            timer: 2500,
+            showConfirmButton: false
+        });
+        setTimeout(() => { isProcessingScan = false; }, 2500); // Resume scanner
         return;
     }
 
@@ -187,11 +241,18 @@ async function handleDistributionScan(qrCode) {
 
     // Block Duplicate Scan
     if (issuedLogs[today][qrCode]) {
-        Swal.fire('Already Issued!', 'This family already received porridge today.', 'error');
+        Swal.fire({
+            icon: 'error',
+            title: 'Already Issued!',
+            text: 'They already received porridge today.',
+            timer: 2500,
+            showConfirmButton: false
+        });
+        setTimeout(() => { isProcessingScan = false; }, 2500); // Resume scanner
         return;
     }
 
-    // Save Issue Record
+    // Save Issue Record to local storage
     issuedLogs[today][qrCode] = {
         name: family.name,
         count: family.count,
@@ -203,15 +264,15 @@ async function handleDistributionScan(qrCode) {
     document.getElementById('dist-name').innerText = family.name;
     document.getElementById('dist-id').innerText = qrCode;
     document.getElementById('dist-count').innerText = family.count;
-    document.getElementById('issue-details').classList.remove('d-none');
+    
+    const detailsCard = document.getElementById('issue-details');
+    detailsCard.classList.remove('d-none');
 
-    Swal.fire({
-        icon: 'success',
-        title: 'Issued!',
-        text: 'Porridge issued successfully.',
-        timer: 1500,
-        showConfirmButton: false
-    });
+    // Automatically hide success UI and resume scanner after 2.5 seconds
+    setTimeout(() => {
+        detailsCard.classList.add('d-none');
+        isProcessingScan = false; // Accepts next scan seamlessly
+    }, 2500);
 }
 
 // ==========================================
@@ -230,12 +291,12 @@ function exportExcel(type) {
         let registered = JSON.parse(localStorage.getItem('registered_families')) || {};
         for (let key in registered) {
             dataToExport.push({
-                "Membership_Number": registered[key].id,
-                "Name": registered[key].name,
-                "Family_Count": registered[key].count
+                "id": registered[key].id,
+                "name": registered[key].name,
+                "count": registered[key].count
             });
         }
-        filename = "Registered_Families.xlsx";
+        filename = "New_Registrations.xlsx";
     } 
     else if (type === 'issued') {
         const today = new Date().toISOString().split('T')[0];
@@ -255,7 +316,7 @@ function exportExcel(type) {
     }
 
     if (dataToExport.length === 0) {
-        Swal.fire('Empty', 'No data to export!', 'info');
+        Swal.fire('Empty', 'No data found to export!', 'info');
         return;
     }
 
