@@ -250,19 +250,48 @@
 
         .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
         .num-btn {
-            aspect-ratio: 1;
+            padding: 14px 6px;
             border: 1.5px solid var(--border);
             border-radius: 12px;
             background: var(--cream);
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: var(--ink);
             cursor: pointer;
             transition: all .15s;
             font-family: 'Amiri', serif;
+            line-height: 1;
         }
         .num-btn:hover { background: var(--emerald); color: #fff; border-color: var(--emerald); transform: scale(.96); }
         .num-btn:active { transform: scale(.92); }
+        .num-btn.active-num { background: var(--emerald); color: #fff; border-color: var(--emerald); }
+
+        /* Manual entry */
+        .manual-entry-wrap { margin-bottom: 18px; }
+        .manual-entry-label { font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
+        .manual-entry-row { display: flex; gap: 8px; }
+        .manual-input {
+            flex: 1;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: .95rem;
+            font-family: 'Lato', sans-serif;
+            color: var(--ink);
+            background: var(--cream);
+            outline: none;
+            transition: border-color .15s;
+        }
+        .manual-input:focus { border-color: var(--emerald); background: #fff; }
+        .btn-manual-lookup {
+            background: linear-gradient(135deg, var(--emerald-mid), var(--emerald));
+            border: none; border-radius: 10px;
+            color: #fff; font-weight: 700; font-size: .85rem;
+            padding: 10px 16px; cursor: pointer;
+            white-space: nowrap;
+            transition: all .2s;
+        }
+        .btn-manual-lookup:hover { background: linear-gradient(135deg, var(--emerald-lt), var(--emerald-mid)); }
 
         .btn-cancel-modal {
             background: var(--cream);
