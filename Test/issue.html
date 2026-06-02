@@ -136,7 +136,7 @@
             color: var(--emerald);
         }
         .stat-tile.s-portions .stat-num { color: #a07c28; }
-        .stat-tile.s-remaining .stat-num { color: #c0392b; }
+        .stat-tile.s-remaining .stat-num { color: #c0392b; font-size: 1.1rem; font-family: 'Lato', sans-serif; letter-spacing: .02em; }
         .stat-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 3px; }
 
         /* ── Scanner ──────────────────────────────────────────────── */
@@ -413,7 +413,7 @@
                         <i class="fa-solid fa-keyboard" style="margin-right:5px;color:var(--gold)"></i>Manual Entry — Membership No.
                     </span>
                     <div class="manual-entry-row">
-                        <input type="text" class="manual-input" id="manual-id-input" placeholder="e.g. FAM-00123" autocomplete="off" />
+                        <input type="text" class="manual-input" id="manual-id-input" placeholder="e.g. PR/001/1/O/G" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:.05em;" />
                         <button class="btn-manual-lookup" id="btn-manual-lookup">
                             <i class="fa-solid fa-search me-1"></i> Issue
                         </button>
@@ -434,6 +434,9 @@
                 <div class="d-flex flex-column gap-2">
                     <button class="btn btn-gold-outline py-2 w-100" onclick="exportExcel('issued')">
                         <i class="fa-solid fa-file-excel me-2"></i>Export Today's Issue Logs
+                    </button>
+                    <button class="btn btn-danger-outline py-2 w-100" onclick="resetIssuedLogs()">
+                        <i class="fa-solid fa-rotate-left me-2"></i>Reset Today's Issue Data
                     </button>
                 </div>
             </div>
@@ -537,7 +540,13 @@
         if (entries.length > 0) {
             // Find the most recent time entry
             const last = entries[entries.length - 1];
-            document.getElementById('stat-last-time').textContent = last.time || '—';
+            // Show HH:MM only
+            if (last.time) {
+                const parts = last.time.split(':');
+                document.getElementById('stat-last-time').textContent = parts[0] + ':' + parts[1];
+            } else {
+                document.getElementById('stat-last-time').textContent = '—';
+            }
         } else {
             document.getElementById('stat-last-time').textContent = '—';
         }
@@ -630,6 +639,56 @@
     });
 
     window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
+
+    /* ── Reset today's issue logs ──────────────────────────────── */
+    function resetIssuedLogs() {
+        Swal.fire({
+            title: 'Reset Today\'s Data?',
+            html: 'This will clear all issue records for <strong>' + TODAY + '</strong> from this device.<br><br>Make sure you have exported first!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#c0392b',
+            cancelButtonColor: '#1a6b45',
+            confirmButtonText: '<i class="fa-solid fa-rotate-left"></i> Yes, Reset',
+            cancelButtonText: 'Cancel'
+        }).then(result => {
+            if (result.isConfirmed) {
+                try {
+                    const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
+                    delete logs[TODAY];
+                    _origSetItem('issued_logs', JSON.stringify(logs));
+                } catch(e) {}
+                updateStats();
+                renderRecentIssues();
+                Swal.fire({ icon: 'success', title: 'Reset!', text: "Today's issue data has been cleared.", timer: 1800, showConfirmButton: false });
+            }
+        });
+    }
+    window.resetIssuedLogs = resetIssuedLogs;
+
+    /* ── Membership code auto-format (PR/001/1/O/G style) ─────── */
+    document.addEventListener('DOMContentLoaded', () => {
+        const inp = document.getElementById('manual-id-input');
+        if (!inp) return;
+
+        inp.addEventListener('input', function(e) {
+            // Uppercase everything, keep only alphanumeric + slash
+            let raw = this.value.toUpperCase().replace(/[^A-Z0-9/]/g, '');
+            // Don't double-add slashes if user typed one manually
+            this.value = raw;
+        });
+
+        inp.addEventListener('keydown', function(e) {
+            // Auto-add slash when pressing Space or Enter-equivalent separator
+            if (e.key === ' ') {
+                e.preventDefault();
+                const cur = this.value;
+                if (cur && !cur.endsWith('/')) {
+                    this.value = cur + '/';
+                }
+            }
+        });
+    });
     </script>
 </body>
 </html>
