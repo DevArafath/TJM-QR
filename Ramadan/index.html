@@ -7,63 +7,607 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-</head>
-<body id="page-home" class="bg-light pb-5">
+    <style>
+        :root {
+            --emerald:     #1a6b45;
+            --emerald-mid: #1e7e50;
+            --emerald-lt:  #25a066;
+            --gold:        #c9a84c;
+            --gold-lt:     #e0c06a;
+            --cream:       #faf7f0;
+            --ink:         #1a2e1f;
+            --muted:       #6b7f6e;
+            --card-bg:     #ffffff;
+            --border:      #d4e8db;
+        }
 
-    <nav class="navbar navbar-dark bg-success shadow-sm">
-        <div class="container">
-            <span class="navbar-brand mb-0 h1"><i class="fa-solid fa-bowl-rice"></i> PorridgeApp</span>
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--cream);
+            font-family: 'Lato', sans-serif;
+            color: var(--ink);
+            padding-bottom: 90px;
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%231a6b45' stroke-width='0.4' opacity='0.12'%3E%3Cpolygon points='40,2 78,20 78,60 40,78 2,60 2,20'/%3E%3Cpolygon points='40,14 66,28 66,52 40,66 14,52 14,28'/%3E%3Cline x1='40' y1='2' x2='40' y2='78'/%3E%3Cline x1='2' y1='20' x2='78' y2='60'/%3E%3Cline x1='78' y1='20' x2='2' y2='60'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 80px 80px;
+        }
+
+        /* ── Navbar ─────────────────────────────────────────────── */
+        .navbar-islamic {
+            background: linear-gradient(135deg, var(--emerald) 0%, #0f4a2e 100%);
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(26,107,69,0.35);
+        }
+        .navbar-islamic::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, transparent, var(--gold), var(--gold-lt), var(--gold), transparent);
+        }
+        .nav-inner { display: flex; align-items: center; gap: 14px; padding: 14px 20px; }
+        .nav-emblem {
+            width: 44px; height: 44px;
+            background: rgba(201,168,76,0.15);
+            border: 1.5px solid var(--gold);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .nav-emblem svg { width: 24px; height: 24px; fill: var(--gold); }
+        .nav-title { line-height: 1.2; }
+        .nav-title .arabic { font-family: 'Amiri', serif; font-size: 1rem; color: var(--gold-lt); display: block; }
+        .nav-title .latin  { font-size: .8rem; color: rgba(255,255,255,.7); letter-spacing: .08em; text-transform: uppercase; }
+        .nav-date {
+            margin-left: auto;
+            text-align: right;
+            font-size: .7rem;
+            color: rgba(255,255,255,.6);
+            line-height: 1.4;
+        }
+        .nav-date strong { display: block; color: var(--gold-lt); font-size: .8rem; }
+
+        /* ── Section heading ────────────────────────────────────── */
+        .section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .section-heading .line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--gold), transparent); }
+        .section-heading .line.rev { background: linear-gradient(90deg, transparent, var(--gold)); }
+        .section-heading span { font-family: 'Amiri', serif; font-size: .95rem; color: var(--emerald); letter-spacing: .04em; white-space: nowrap; }
+
+        /* ── Cards ──────────────────────────────────────────────── */
+        .islamic-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 18px rgba(26,107,69,.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .islamic-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--emerald), var(--gold), var(--emerald));
+        }
+        .card-inner { padding: 20px; }
+
+        /* ── Hero stat tiles ────────────────────────────────────── */
+        .hero-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+
+        .hero-tile {
+            border-radius: 16px;
+            padding: 18px 14px 14px;
+            position: relative;
+            overflow: hidden;
+            min-height: 100px;
+        }
+        .hero-tile::after {
+            content: '';
+            position: absolute;
+            bottom: -18px; right: -18px;
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            opacity: .12;
+        }
+        .hero-tile.ht-pending  { background: linear-gradient(135deg, #1a5fa8, #1a3d8a); }
+        .hero-tile.ht-issued   { background: linear-gradient(135deg, var(--emerald-mid), #0f4a2e); }
+        .hero-tile.ht-portions { background: linear-gradient(135deg, #a07c28, #7a5c1a); }
+        .hero-tile.ht-rate     { background: linear-gradient(135deg, #6b3fa0, #4a2878); }
+
+        .hero-tile::after { background: #fff; }
+
+        .hero-tile-icon {
+            width: 36px; height: 36px;
+            background: rgba(255,255,255,.15);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 10px;
+        }
+        .hero-tile-icon i { color: rgba(255,255,255,.9); font-size: 1rem; }
+        .hero-num {
+            font-family: 'Amiri', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+        }
+        .hero-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; color: rgba(255,255,255,.7); margin-top: 4px; }
+
+        /* ── Progress bar ───────────────────────────────────────── */
+        .dist-progress-wrap { margin-bottom: 6px; }
+        .dist-progress-labels { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); margin-bottom: 5px; }
+        .dist-progress-labels strong { color: var(--ink); }
+        .progress-track { height: 10px; background: #e8f0ea; border-radius: 10px; overflow: hidden; }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--emerald), var(--emerald-lt));
+            border-radius: 10px;
+            transition: width .8s cubic-bezier(.4,0,.2,1);
+        }
+
+        /* ── Family size breakdown ──────────────────────────────── */
+        .breakdown-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+        .breakdown-item { display: flex; align-items: center; gap: 10px; }
+        .breakdown-label { font-size: .8rem; color: var(--muted); width: 80px; flex-shrink: 0; }
+        .breakdown-bar-track { flex: 1; height: 8px; background: #e8f0ea; border-radius: 8px; overflow: hidden; }
+        .breakdown-bar-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--emerald), var(--gold)); transition: width .8s; }
+        .breakdown-count { font-size: .78rem; font-weight: 700; color: var(--ink); width: 28px; text-align: right; flex-shrink: 0; }
+
+        /* ── Hourly chart (pure CSS bars) ───────────────────────── */
+        .hour-chart { display: flex; align-items: flex-end; gap: 3px; height: 70px; padding: 0 2px; }
+        .hour-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
+        .hour-bar {
+            width: 100%;
+            background: linear-gradient(180deg, var(--emerald-lt), var(--emerald));
+            border-radius: 3px 3px 0 0;
+            min-height: 2px;
+            transition: height .6s ease;
+            position: relative;
+        }
+        .hour-bar.peak { background: linear-gradient(180deg, var(--gold-lt), var(--gold)); }
+        .hour-label { font-size: .55rem; color: var(--muted); white-space: nowrap; }
+        .chart-empty { text-align: center; padding: 20px; color: var(--muted); font-size: .82rem; }
+        .chart-empty i { display: block; font-size: 1.5rem; margin-bottom: 6px; color: var(--border); }
+
+        /* ── Today log list ─────────────────────────────────────── */
+        .log-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+        .log-list::-webkit-scrollbar { width: 4px; }
+        .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        .log-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--cream); border-radius: 10px; border: 1px solid var(--border); }
+        .log-avatar { width: 36px; height: 36px; background: linear-gradient(135deg, var(--emerald-lt), var(--emerald)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: .85rem; flex-shrink: 0; }
+        .log-name { font-weight: 700; font-size: .85rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .log-time { font-size: .7rem; color: var(--muted); }
+        .log-badge { background: linear-gradient(135deg, var(--emerald), var(--emerald-mid)); color: #fff; border-radius: 20px; padding: 2px 8px; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+        .empty-state { text-align: center; padding: 24px 16px; color: var(--muted); }
+        .empty-state i { font-size: 1.8rem; margin-bottom: 6px; color: var(--border); display: block; }
+        .empty-state p { font-size: .82rem; margin: 0; }
+
+        /* ── Buttons ────────────────────────────────────────────── */
+        .btn-danger-outline { background: transparent; color: #c0392b; border: 1.5px solid #e0b0ac; border-radius: 10px; transition: all .2s; font-weight: 600; }
+        .btn-danger-outline:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+
+        /* ── Quick Action Tiles ─────────────────────────────────── */
+        .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .quick-tile {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 14px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--ink);
+            transition: all .2s;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .quick-tile:hover { background: var(--emerald); color: #fff; border-color: var(--emerald); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,107,69,.25); }
+        .quick-tile:hover .qt-icon { background: rgba(255,255,255,.2); }
+        .quick-tile:hover .qt-label { color: rgba(255,255,255,.85); }
+        .qt-icon { width: 44px; height: 44px; background: linear-gradient(135deg, #e8f5ee, #d4e8db); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .qt-icon i { font-size: 1.2rem; color: var(--emerald); }
+        .quick-tile:hover .qt-icon i { color: #fff; }
+        .qt-title { font-weight: 700; font-size: .9rem; }
+        .qt-label { font-size: .7rem; color: var(--muted); }
+
+        /* ── Bismillah banner ───────────────────────────────────── */
+        .bismillah-banner {
+            background: linear-gradient(135deg, var(--emerald) 0%, #0f4a2e 100%);
+            border-radius: 16px;
+            padding: 18px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .bismillah-banner::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.3' opacity='0.08'%3E%3Cpolygon points='30,1 59,15 59,45 30,59 1,45 1,15'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 60px 60px;
+        }
+        .bismillah-banner > * { position: relative; z-index: 1; }
+        .bismillah-text { font-family: 'Amiri', serif; font-size: 1.4rem; color: var(--gold-lt); display: block; margin-bottom: 2px; }
+        .bismillah-sub { font-size: .72rem; color: rgba(255,255,255,.6); letter-spacing: .06em; text-transform: uppercase; }
+
+        /* ── Bottom nav ─────────────────────────────────────────── */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #fff; display: flex;
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 20px rgba(26,107,69,.1);
+            z-index: 1000;
+        }
+        .bottom-nav a {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            padding: 10px 0 8px; text-decoration: none;
+            color: var(--muted); font-size: .68rem; letter-spacing: .03em;
+            transition: color .2s; gap: 3px;
+        }
+        .bottom-nav a i { font-size: 1.2rem; }
+        .bottom-nav a.active { color: var(--emerald); font-weight: 700; }
+        .bottom-nav a:not(.active):hover { color: var(--emerald-mid); }
+
+        .page-wrap { padding: 20px 16px; position: relative; z-index: 1; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    </style>
+</head>
+<body id="page-home">
+
+    <!-- Navbar -->
+    <nav class="navbar-islamic">
+        <div class="nav-inner container">
+            <div class="nav-emblem">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+                </svg>
+            </div>
+            <div class="nav-title">
+                <span class="arabic">لوحة التحكم</span>
+                <span class="latin">Dashboard</span>
+            </div>
+            <div class="nav-date">
+                <strong id="nav-date-display">—</strong>
+                <span id="nav-time-display">—</span>
+            </div>
         </div>
     </nav>
 
-    <div class="container mt-4 mb-5">
-        <h3 class="mb-4 text-secondary">Dashboard</h3>
-        <div class="row g-3">
-            <div class="col-6">
-                <div class="card stat-card bg-primary text-white shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <i class="fa-solid fa-users fa-2x mb-2"></i>
-                        <h5 class="card-title" id="stat-registered">0</h5>
-                        <p class="card-text small">Pending Registrations</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6">
-                <div class="card stat-card bg-success text-white shadow-sm h-100">
-                    <div class="card-body text-center">
-                        <i class="fa-solid fa-check-circle fa-2x mb-2"></i>
-                        <h5 class="card-title" id="stat-issued-today">0</h5>
-                        <p class="card-text small">Families Issued Today</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 mt-3">
-                <div class="card shadow-sm border-success">
-                    <div class="card-body">
-                        <h5 class="card-title text-success"><i class="fa-solid fa-chart-line"></i> Today's Summary</h5>
-                        <p class="mb-1 text-dark fs-5">Total Portions Fed Today: <strong class="text-success fs-3" id="stat-portions">0</strong></p>
-                    </div>
-                </div>
-            </div>
+    <div class="page-wrap container">
 
-            <!-- RESET BUTTON -->
-            <div class="col-12 mt-4">
-                <button class="btn btn-outline-danger w-100 py-2 shadow-sm" onclick="clearAllData()">
-                    <i class="fa-solid fa-trash-can"></i> Factory Reset (Clear Local Data)
-                </button>
-                <p class="text-muted small text-center mt-2">This will clear today's issues and pending registrations from this device.</p>
+        <!-- Bismillah Banner -->
+        <div class="bismillah-banner mt-2">
+            <span class="bismillah-text">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</span>
+            <span class="bismillah-sub">Porridge Distribution Program</span>
+        </div>
+
+        <!-- Hero Stats -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-chart-simple" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Today's Overview</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="hero-grid mb-4">
+            <div class="hero-tile ht-pending">
+                <div class="hero-tile-icon"><i class="fa-solid fa-user-clock"></i></div>
+                <div class="hero-num" id="stat-registered">0</div>
+                <div class="hero-label">Pending Registrations</div>
+            </div>
+            <div class="hero-tile ht-issued">
+                <div class="hero-tile-icon"><i class="fa-solid fa-check-circle"></i></div>
+                <div class="hero-num" id="stat-issued-today">0</div>
+                <div class="hero-label">Families Issued</div>
+            </div>
+            <div class="hero-tile ht-portions">
+                <div class="hero-tile-icon"><i class="fa-solid fa-bowl-food"></i></div>
+                <div class="hero-num" id="stat-portions">0</div>
+                <div class="hero-label">Total Portions</div>
+            </div>
+            <div class="hero-tile ht-rate">
+                <div class="hero-tile-icon"><i class="fa-solid fa-percent"></i></div>
+                <div class="hero-num" id="stat-avg-size">0</div>
+                <div class="hero-label">Avg Family Size</div>
             </div>
         </div>
+
+        <!-- Distribution Progress -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-arrow-trend-up" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Distribution Progress</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-4">
+            <div class="card-inner">
+                <div class="dist-progress-wrap">
+                    <div class="dist-progress-labels">
+                        <span>Issued <strong id="prog-issued">0</strong></span>
+                        <span>of <strong id="prog-total">0</strong> registered</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="prog-bar" style="width:0%"></div>
+                    </div>
+                    <div style="text-align:right;font-size:.72rem;color:var(--muted);margin-top:4px;">
+                        <span id="prog-pct">0%</span> completed
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hourly Activity -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-clock" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Hourly Activity</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-4">
+            <div class="card-inner" style="padding-bottom:14px;">
+                <div id="hourly-chart-wrap"></div>
+            </div>
+        </div>
+
+        <!-- Family Size Breakdown & Quick Actions -->
+        <div class="two-col mb-4">
+            <div class="islamic-card">
+                <div class="card-inner">
+                    <div style="font-family:'Amiri',serif;font-size:.9rem;color:var(--emerald);margin-bottom:12px;">
+                        <i class="fa-solid fa-users" style="color:var(--gold);margin-right:6px;font-size:.8rem"></i>Family Sizes
+                    </div>
+                    <ul class="breakdown-list" id="size-breakdown"></ul>
+                </div>
+            </div>
+            <div class="islamic-card">
+                <div class="card-inner">
+                    <div style="font-family:'Amiri',serif;font-size:.9rem;color:var(--emerald);margin-bottom:12px;">
+                        <i class="fa-solid fa-bolt" style="color:var(--gold);margin-right:6px;font-size:.8rem"></i>Quick Actions
+                    </div>
+                    <div class="quick-grid">
+                        <a href="register.html" class="quick-tile">
+                            <div class="qt-icon"><i class="fa-solid fa-user-plus"></i></div>
+                            <div class="qt-title">Register</div>
+                            <div class="qt-label">Add family</div>
+                        </a>
+                        <a href="issue.html" class="quick-tile">
+                            <div class="qt-icon"><i class="fa-solid fa-qrcode"></i></div>
+                            <div class="qt-title">Issue</div>
+                            <div class="qt-label">Scan QR</div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Issue Log -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-list-check" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Today's Issue Log</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-4">
+            <div class="card-inner">
+                <ul class="log-list" id="today-log-list"></ul>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-triangle-exclamation" style="font-size:.8rem;margin-right:6px;color:#c0392b"></i>Danger Zone</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-2">
+            <div class="card-inner">
+                <button class="btn btn-danger-outline w-100 py-2" onclick="clearAllData()">
+                    <i class="fa-solid fa-trash-can me-2"></i>Factory Reset — Clear All Local Data
+                </button>
+                <p class="text-center mt-2 mb-0" style="font-size:.72rem;color:var(--muted);">
+                    Clears today's issues and all pending registrations from this device.
+                </p>
+            </div>
+        </div>
+
     </div>
 
-    <div class="bottom-nav bg-white shadow">
-        <a href="index.html" class="nav-item active"><i class="fa-solid fa-home"></i><span>Home</span></a>
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item active"><i class="fa-solid fa-house"></i><span>Home</span></a>
         <a href="register.html" class="nav-item"><i class="fa-solid fa-user-plus"></i><span>Register</span></a>
         <a href="issue.html" class="nav-item"><i class="fa-solid fa-qrcode"></i><span>Issue</span></a>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="app.js"></script>
+
+    <script>
+    /* ── Dashboard UI extensions ───────────────────────────────────
+       app.js handles: stat-registered, stat-issued-today, stat-portions
+       We enhance with: avg size, progress bar, hourly chart,
+       family size breakdown, today's log list, live clock.
+    ─────────────────────────────────────────────────────────────── */
+
+    const TODAY = new Date().toISOString().split('T')[0];
+
+    function getTodayIssued() {
+        try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[TODAY] || {}; } catch(e) { return {}; }
+    }
+    function getPending() {
+        try { return JSON.parse(localStorage.getItem('registered_families') || '{}'); } catch(e) { return {}; }
+    }
+
+    function initials(name) {
+        if (!name) return '?';
+        const p = name.trim().split(/\s+/);
+        return p.length >= 2 ? (p[0][0] + p[p.length-1][0]).toUpperCase() : name.slice(0,2).toUpperCase();
+    }
+
+    /* ── Live clock ─────────────────────────────────────────────── */
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('nav-date-display').textContent =
+            now.toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+        document.getElementById('nav-time-display').textContent =
+            now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    /* ── Extended dashboard ─────────────────────────────────────── */
+    function buildDashboard() {
+        const issued  = getTodayIssued();
+        const pending = getPending();
+        const entries = Object.values(issued);
+        const pendingCount = Object.keys(pending).length;
+
+        // Avg family size
+        const avgSize = entries.length
+            ? (entries.reduce((s,e) => s + (e.count||0), 0) / entries.length).toFixed(1)
+            : '0';
+        document.getElementById('stat-avg-size').textContent = avgSize;
+
+        // Distribution progress (issued vs pending registered)
+        const issuedCount = entries.length;
+        const totalRegistered = pendingCount + issuedCount; // rough total shown
+        const pct = totalRegistered > 0 ? Math.round((issuedCount / totalRegistered) * 100) : 0;
+        document.getElementById('prog-issued').textContent = issuedCount;
+        document.getElementById('prog-total').textContent = totalRegistered;
+        document.getElementById('prog-pct').textContent = pct + '%';
+        document.getElementById('prog-bar').style.width = pct + '%';
+
+        // Hourly activity chart
+        buildHourlyChart(issued);
+
+        // Family size breakdown
+        buildSizeBreakdown(issued);
+
+        // Today's log
+        buildTodayLog(issued);
+    }
+
+    /* ── Hourly chart ───────────────────────────────────────────── */
+    function buildHourlyChart(issued) {
+        const wrap = document.getElementById('hourly-chart-wrap');
+        // Bucket issues into hours 5..22
+        const hours = {};
+        for (let h = 5; h <= 22; h++) hours[h] = 0;
+
+        Object.values(issued).forEach(e => {
+            if (!e.time) return;
+            const h = parseInt(e.time.split(':')[0]);
+            if (h >= 5 && h <= 22) hours[h]++;
+        });
+
+        const vals = Object.values(hours);
+        const maxVal = Math.max(...vals, 1);
+
+        if (vals.every(v => v === 0)) {
+            wrap.innerHTML = '<div class="chart-empty"><i class="fa-solid fa-chart-bar"></i>No activity recorded today yet.</div>';
+            return;
+        }
+
+        const peakH = Object.entries(hours).sort((a,b)=>b[1]-a[1])[0][0];
+
+        let html = '<div class="hour-chart">';
+        for (let h = 5; h <= 22; h++) {
+            const v = hours[h];
+            const pct = Math.round((v / maxVal) * 100);
+            const isPeak = String(h) === String(peakH) && v > 0;
+            const label = h < 12 ? h+'a' : h === 12 ? '12p' : (h-12)+'p';
+            html += `<div class="hour-bar-wrap">
+                <div class="hour-bar${isPeak ? ' peak' : ''}" style="height:${Math.max(pct,2)}%" title="${v} issues at ${label}"></div>
+                <div class="hour-label">${label}</div>
+            </div>`;
+        }
+        html += '</div>';
+        // Peak annotation
+        if (maxVal > 0) {
+            const peakLabel = parseInt(peakH) < 12 ? peakH+'am' : parseInt(peakH) === 12 ? '12pm' : (parseInt(peakH)-12)+'pm';
+            html += `<div style="text-align:right;font-size:.7rem;color:var(--muted);margin-top:6px;">
+                <i class="fa-solid fa-bolt" style="color:var(--gold);font-size:.65rem"></i>
+                Peak: <strong style="color:var(--ink)">${peakLabel}</strong> with ${hours[peakH]} issues
+            </div>`;
+        }
+        wrap.innerHTML = html;
+    }
+
+    /* ── Family size breakdown ──────────────────────────────────── */
+    function buildSizeBreakdown(issued) {
+        const el = document.getElementById('size-breakdown');
+        const buckets = {};
+        Object.values(issued).forEach(e => {
+            const c = e.count || 1;
+            buckets[c] = (buckets[c] || 0) + 1;
+        });
+
+        if (!Object.keys(buckets).length) {
+            el.innerHTML = '<li><div class="empty-state" style="padding:12px"><i class="fa-solid fa-users"></i><p>No data yet</p></div></li>';
+            return;
+        }
+
+        const sorted = Object.entries(buckets).sort((a,b) => parseInt(a[0])-parseInt(b[0]));
+        const maxB = Math.max(...Object.values(buckets), 1);
+
+        el.innerHTML = sorted.map(([size, count]) => {
+            const pct = Math.round((count/maxB)*100);
+            const label = size + (parseInt(size)===1 ? ' member' : ' members');
+            return `<li class="breakdown-item">
+                <div class="breakdown-label">${label}</div>
+                <div class="breakdown-bar-track">
+                    <div class="breakdown-bar-fill" style="width:${pct}%"></div>
+                </div>
+                <div class="breakdown-count">${count}</div>
+            </li>`;
+        }).join('');
+    }
+
+    /* ── Today's log list ───────────────────────────────────────── */
+    function buildTodayLog(issued) {
+        const ul = document.getElementById('today-log-list');
+        const entries = Object.entries(issued);
+
+        if (!entries.length) {
+            ul.innerHTML = '<li><div class="empty-state"><i class="fa-solid fa-bowl-food"></i><p>No issues recorded today.</p></div></li>';
+            return;
+        }
+
+        ul.innerHTML = entries.slice().reverse().slice(0, 50).map(([id, r]) =>
+            `<li class="log-item">
+                <div class="log-avatar">${initials(r.name||'')}</div>
+                <div style="flex:1;min-width:0">
+                    <div class="log-name">${r.name||'Unknown'}</div>
+                    <div class="log-time"><i class="fa-regular fa-clock" style="font-size:.6rem"></i> ${r.time||''} &nbsp;·&nbsp; ${id}</div>
+                </div>
+                <div class="log-badge"><i class="fa-solid fa-bowl-food" style="font-size:.65rem;margin-right:2px"></i>${r.count||1}</div>
+            </li>`
+        ).join('');
+    }
+
+    /* ── Run on load ────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', buildDashboard);
+
+    /* ── Patch localStorage to auto-refresh when issue.html writes ─ */
+    const _origSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+        _origSetItem(key, value);
+        if (key === 'issued_logs' || key === 'registered_families') {
+            if (typeof initDashboard === 'function') initDashboard();
+            buildDashboard();
+        }
+    };
+    </script>
+
 </body>
 </html>
