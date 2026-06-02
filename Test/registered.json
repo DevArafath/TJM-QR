@@ -1,3 +1,11 @@
+// Array containing a family category record.
+// id    : Unique identifier for the category.
+// name  : Display name of the category.
+// count : Number of items/families in this category.
 [
-    { "id": "ML/049/1/O/G", "name": "Pre-Existing Family", "count": 9 }
+    {
+        id: "ML/049/1/O/G",
+        name: "Pre-Existing Family",
+        count: 9
+    }
 ]
