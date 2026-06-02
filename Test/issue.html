@@ -7,40 +7,480 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-</head>
-<body id="page-issue" class="bg-light pb-5">
+    <style>
+        :root {
+            --emerald:     #1a6b45;
+            --emerald-mid: #1e7e50;
+            --emerald-lt:  #25a066;
+            --gold:        #c9a84c;
+            --gold-lt:     #e0c06a;
+            --cream:       #faf7f0;
+            --ink:         #1a2e1f;
+            --muted:       #6b7f6e;
+            --card-bg:     #ffffff;
+            --border:      #d4e8db;
+        }
 
-    <nav class="navbar navbar-dark bg-success shadow-sm">
-        <div class="container">
-            <span class="navbar-brand mb-0 h1">Issue Porridge</span>
+        * { box-sizing: border-box; }
+
+        body {
+            background-color: var(--cream);
+            font-family: 'Lato', sans-serif;
+            color: var(--ink);
+            padding-bottom: 90px;
+            min-height: 100vh;
+        }
+
+        /* ── Geometric background ─────────────────────────────────── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background-image:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%231a6b45' stroke-width='0.4' opacity='0.12'%3E%3Cpolygon points='40,2 78,20 78,60 40,78 2,60 2,20'/%3E%3Cpolygon points='40,14 66,28 66,52 40,66 14,52 14,28'/%3E%3Cline x1='40' y1='2' x2='40' y2='78'/%3E%3Cline x1='2' y1='20' x2='78' y2='60'/%3E%3Cline x1='78' y1='20' x2='2' y2='60'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 80px 80px;
+        }
+
+        /* ── Navbar ───────────────────────────────────────────────── */
+        .navbar-islamic {
+            background: linear-gradient(135deg, var(--emerald) 0%, #0f4a2e 100%);
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(26,107,69,0.35);
+        }
+        .navbar-islamic::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--gold), var(--gold-lt), var(--gold), transparent);
+        }
+        .nav-inner { display: flex; align-items: center; gap: 14px; padding: 14px 20px; }
+        .nav-emblem {
+            width: 44px; height: 44px;
+            background: rgba(201,168,76,0.15);
+            border: 1.5px solid var(--gold);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .nav-emblem svg { width: 24px; height: 24px; fill: var(--gold); }
+        .nav-title { line-height: 1.2; }
+        .nav-title .arabic { font-family: 'Amiri', serif; font-size: 1rem; color: var(--gold-lt); display: block; }
+        .nav-title .latin  { font-size: .8rem; color: rgba(255,255,255,.7); letter-spacing: .08em; text-transform: uppercase; }
+
+        /* ── Section heading ──────────────────────────────────────── */
+        .section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+        .section-heading .line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--gold), transparent); }
+        .section-heading .line.rev { background: linear-gradient(90deg, transparent, var(--gold)); }
+        .section-heading span {
+            font-family: 'Amiri', serif;
+            font-size: .95rem;
+            color: var(--emerald);
+            letter-spacing: .04em;
+            white-space: nowrap;
+        }
+
+        /* ── Cards ────────────────────────────────────────────────── */
+        .islamic-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 18px rgba(26,107,69,.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .islamic-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--emerald), var(--gold), var(--emerald));
+        }
+        .card-inner { padding: 20px; }
+
+        /* ── Today Stats Bar ──────────────────────────────────────── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat-tile {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 8px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-tile::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 3px;
+        }
+        .stat-tile.s-issued::before  { background: linear-gradient(90deg, var(--emerald), var(--emerald-lt)); }
+        .stat-tile.s-portions::before { background: linear-gradient(90deg, var(--gold), var(--gold-lt)); }
+        .stat-tile.s-remaining::before { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+        .stat-num {
+            font-family: 'Amiri', serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--emerald);
+        }
+        .stat-tile.s-portions .stat-num { color: #a07c28; }
+        .stat-tile.s-remaining .stat-num { color: #c0392b; }
+        .stat-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 3px; }
+
+        /* ── Scanner ──────────────────────────────────────────────── */
+        #qr-reader { border-radius: 12px; overflow: hidden; border: 2px dashed var(--border); }
+        #qr-reader video { border-radius: 10px; }
+
+        .scanner-placeholder {
+            padding: 36px 20px;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            color: var(--muted);
+        }
+        .scanner-placeholder .hex-icon {
+            width: 72px; height: 72px;
+            background: linear-gradient(135deg, #e8f5ee, #d4e8db);
+            clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 6px;
+        }
+        .scanner-placeholder .hex-icon i { font-size: 1.8rem; color: var(--emerald); }
+        .scanner-placeholder p { font-size: .85rem; text-align: center; max-width: 220px; margin: 0; }
+
+        /* ── Buttons ──────────────────────────────────────────────── */
+        .btn-emerald {
+            background: linear-gradient(135deg, var(--emerald-mid), var(--emerald));
+            color: #fff; border: none; border-radius: 10px;
+            font-weight: 700; letter-spacing: .04em;
+            box-shadow: 0 4px 14px rgba(26,107,69,.3);
+            transition: all .2s;
+        }
+        .btn-emerald:hover { background: linear-gradient(135deg, var(--emerald-lt), var(--emerald-mid)); color: #fff; transform: translateY(-1px); }
+        .btn-gold-outline {
+            background: transparent; color: var(--gold);
+            border: 1.5px solid var(--gold); border-radius: 10px;
+            font-weight: 600; transition: all .2s;
+        }
+        .btn-gold-outline:hover { background: var(--gold); color: #fff; }
+        .btn-danger-outline {
+            background: transparent; color: #c0392b;
+            border: 1.5px solid #e0b0ac; border-radius: 10px;
+            transition: all .2s;
+        }
+        .btn-danger-outline:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+
+        /* ── Manual entry ─────────────────────────────────────────── */
+        .manual-entry-label { font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
+        .manual-entry-row { display: flex; gap: 8px; }
+        .manual-input {
+            flex: 1; border: 1.5px solid var(--border); border-radius: 10px;
+            padding: 10px 14px; font-size: .95rem;
+            font-family: 'Lato', sans-serif; color: var(--ink);
+            background: var(--cream); outline: none; transition: border-color .15s;
+        }
+        .manual-input:focus { border-color: var(--emerald); background: #fff; }
+        .btn-manual-lookup {
+            background: linear-gradient(135deg, var(--emerald-mid), var(--emerald));
+            border: none; border-radius: 10px; color: #fff;
+            font-weight: 700; font-size: .85rem; padding: 10px 16px;
+            cursor: pointer; white-space: nowrap; transition: all .2s;
+        }
+        .btn-manual-lookup:hover { background: linear-gradient(135deg, var(--emerald-lt), var(--emerald-mid)); }
+
+        /* ── Recent Issues List ───────────────────────────────────── */
+        .recent-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+        .recent-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 12px 16px;
+            background: var(--cream);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: box-shadow .2s;
+        }
+        .recent-item:hover { box-shadow: 0 2px 12px rgba(26,107,69,.12); }
+        .item-avatar {
+            width: 42px; height: 42px;
+            background: linear-gradient(135deg, var(--emerald-lt), var(--emerald));
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; color: #fff; font-weight: 700; font-size: 1rem;
+        }
+        .item-info { flex: 1; min-width: 0; }
+        .item-name { font-weight: 700; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+        .item-id   { font-size: .75rem; color: var(--muted); }
+        .item-time { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+        .item-badge {
+            background: linear-gradient(135deg, var(--emerald), var(--emerald-mid));
+            color: #fff; border-radius: 20px;
+            padding: 3px 10px; font-size: .78rem; font-weight: 700; white-space: nowrap;
+        }
+        .empty-state { text-align: center; padding: 32px 16px; color: var(--muted); }
+        .empty-state i { font-size: 2rem; margin-bottom: 8px; color: var(--border); display: block; }
+        .empty-state p { font-size: .85rem; margin: 0; }
+
+        /* ── Issue Success Modal ──────────────────────────────────── */
+        .modal-content {
+            border-radius: 20px;
+            border: none;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,.25);
+        }
+        .modal-success-body {
+            background: linear-gradient(160deg, #0f4a2e 0%, var(--emerald) 60%, #1a8f56 100%);
+            padding: 36px 28px 32px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        /* Geometric overlay inside modal */
+        .modal-success-body::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='0.3' opacity='0.08'%3E%3Cpolygon points='30,1 59,15 59,45 30,59 1,45 1,15'/%3E%3C/g%3E%3C/svg%3E");
+            background-size: 60px 60px;
+        }
+        .modal-success-body > * { position: relative; z-index: 1; }
+        .modal-gold-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), var(--gold-lt), var(--gold), transparent);
+            margin: 16px 0;
+        }
+        .modal-check-ring {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            background: rgba(201,168,76,0.2);
+            border: 2px solid var(--gold);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 14px;
+        }
+        .modal-check-ring i { font-size: 2rem; color: var(--gold-lt); }
+        .modal-family-name {
+            font-family: 'Amiri', serif;
+            font-size: 1.5rem;
+            color: #fff;
+            margin: 0 0 2px;
+        }
+        .modal-family-id { font-size: .8rem; color: rgba(255,255,255,.65); margin-bottom: 0; }
+        .modal-portions-box {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: rgba(255,255,255,.12);
+            border: 1.5px solid rgba(255,255,255,.25);
+            border-radius: 14px;
+            padding: 10px 24px;
+            margin-top: 14px;
+        }
+        .modal-portions-num {
+            font-family: 'Amiri', serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--gold-lt);
+            line-height: 1;
+        }
+        .modal-portions-label {
+            font-size: .75rem;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: rgba(255,255,255,.7);
+            line-height: 1.3;
+        }
+        .modal-time-badge {
+            display: inline-block;
+            background: rgba(255,255,255,.1);
+            border-radius: 20px;
+            padding: 4px 14px;
+            font-size: .75rem;
+            color: rgba(255,255,255,.7);
+            margin-top: 10px;
+        }
+        .modal-auto-bar {
+            height: 3px;
+            background: rgba(255,255,255,.15);
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        .modal-auto-bar-fill {
+            height: 100%;
+            background: var(--gold);
+            border-radius: 2px;
+            width: 100%;
+            animation: shrinkBar 2.5s linear forwards;
+        }
+        @keyframes shrinkBar { from { width: 100%; } to { width: 0%; } }
+
+        /* ── Bottom Nav ───────────────────────────────────────────── */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #fff; display: flex;
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 20px rgba(26,107,69,.1);
+            z-index: 1000;
+        }
+        .bottom-nav a {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            padding: 10px 0 8px; text-decoration: none;
+            color: var(--muted); font-size: .68rem; letter-spacing: .03em;
+            transition: color .2s; gap: 3px;
+        }
+        .bottom-nav a i { font-size: 1.2rem; }
+        .bottom-nav a.active { color: var(--emerald); font-weight: 700; }
+        .bottom-nav a.active i { color: var(--emerald); }
+        .bottom-nav a:not(.active):hover { color: var(--emerald-mid); }
+
+        .page-wrap { padding: 20px 16px; position: relative; z-index: 1; }
+    </style>
+</head>
+<body id="page-issue">
+
+    <!-- Navbar -->
+    <nav class="navbar-islamic">
+        <div class="nav-inner container">
+            <div class="nav-emblem">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+                </svg>
+            </div>
+            <div class="nav-title">
+                <span class="arabic">توزيع العصيدة</span>
+                <span class="latin">Issue Porridge</span>
+            </div>
         </div>
     </nav>
 
-    <div class="container mt-4 mb-5 pb-4">
-        <!-- Scanner Area -->
-        <div class="card shadow-sm mb-3">
-            <div class="card-body text-center">
-                <div id="qr-reader" style="width: 100%;"></div>
-                <button class="btn btn-outline-success mt-3" id="btn-start-scan"><i class="fa-solid fa-camera"></i> Start Scanner</button>
-                <button class="btn btn-outline-danger mt-3 d-none" id="btn-stop-scan"><i class="fa-solid fa-stop"></i> Stop Camera</button>
+    <div class="page-wrap container">
+
+        <!-- Today's Stats Bar -->
+        <div class="section-heading mt-2">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-chart-simple" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Today's Summary</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="stats-bar mb-4">
+            <div class="stat-tile s-issued">
+                <div class="stat-num" id="stat-issued-count">0</div>
+                <div class="stat-label">Families<br>Issued</div>
+            </div>
+            <div class="stat-tile s-portions">
+                <div class="stat-num" id="stat-portions-count">0</div>
+                <div class="stat-label">Total<br>Portions</div>
+            </div>
+            <div class="stat-tile s-remaining">
+                <div class="stat-num" id="stat-last-time">—</div>
+                <div class="stat-label">Last<br>Issue</div>
             </div>
         </div>
 
-        <button class="btn btn-secondary w-100 mt-2" onclick="exportExcel('issued')"><i class="fa-solid fa-file-excel"></i> Export Today's Logs</button>
+        <!-- Scanner Card -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-qrcode" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>QR Scanner</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-4">
+            <div class="card-inner">
+                <div id="qr-reader" style="width:100%">
+                    <div class="scanner-placeholder" id="scanner-ph">
+                        <div class="hex-icon"><i class="fa-solid fa-qrcode"></i></div>
+                        <p>Tap "Start Scanner" to scan and issue porridge to a registered family</p>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-emerald flex-fill py-2" id="btn-start-scan">
+                        <i class="fa-solid fa-camera me-1"></i> Start Scanner
+                    </button>
+                    <button class="btn btn-danger-outline flex-fill py-2 d-none" id="btn-stop-scan">
+                        <i class="fa-solid fa-stop me-1"></i> Stop Camera
+                    </button>
+                </div>
+
+                <!-- Manual Membership Entry -->
+                <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);">
+                    <span class="manual-entry-label">
+                        <i class="fa-solid fa-keyboard" style="margin-right:5px;color:var(--gold)"></i>Manual Entry — Membership No.
+                    </span>
+                    <div class="manual-entry-row">
+                        <input type="text" class="manual-input" id="manual-id-input" placeholder="e.g. FAM-00123" autocomplete="off" />
+                        <button class="btn-manual-lookup" id="btn-manual-lookup">
+                            <i class="fa-solid fa-search me-1"></i> Issue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Utilities -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-gear" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Utilities</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card mb-4">
+            <div class="card-inner">
+                <div class="d-flex flex-column gap-2">
+                    <button class="btn btn-gold-outline py-2 w-100" onclick="exportExcel('issued')">
+                        <i class="fa-solid fa-file-excel me-2"></i>Export Today's Issue Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Issues -->
+        <div class="section-heading">
+            <div class="line"></div>
+            <span><i class="fa-solid fa-clock-rotate-left" style="font-size:.8rem;margin-right:6px;color:var(--gold)"></i>Recent Issues Today</span>
+            <div class="line rev"></div>
+        </div>
+
+        <div class="islamic-card">
+            <div class="card-inner">
+                <ul class="recent-list" id="recent-issue-list">
+                    <li>
+                        <div class="empty-state">
+                            <i class="fa-solid fa-bowl-food"></i>
+                            <p>No issues recorded today.<br>Scan a QR code to get started.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
     </div>
 
-    <!-- SUCCESS MODAL (Auto closes) -->
+    <!-- ── SUCCESS MODAL ──────────────────────────────────────────── -->
     <div class="modal fade" id="issueModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content bg-success text-white border-0 shadow-lg">
-                <div class="modal-body text-center py-5">
-                    <i class="fa-solid fa-check-circle fa-4x mb-3 text-warning"></i>
-                    <h2 class="fw-bold">Issued Successfully</h2>
-                    <h4 id="dist-name" class="mt-3">Name</h4>
-                    <p id="dist-id" class="mb-1 text-light">ID</p>
-                    <div class="bg-white text-success rounded py-2 px-4 d-inline-block mt-3 shadow">
-                        <h2 class="mb-0 fw-bold">Portions: <span id="dist-count">0</span></h2>
+            <div class="modal-content">
+                <div class="modal-success-body">
+                    <div class="modal-check-ring">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div class="modal-gold-line"></div>
+                    <h4 class="modal-family-name" id="dist-name">Family Name</h4>
+                    <p class="modal-family-id" id="dist-id">ID</p>
+                    <div class="modal-portions-box">
+                        <div class="modal-portions-num" id="dist-count">0</div>
+                        <div class="modal-portions-label">Portions<br>Issued</div>
+                    </div>
+                    <div>
+                        <span class="modal-time-badge"><i class="fa-regular fa-clock me-1"></i><span id="dist-time">—</span></span>
+                    </div>
+                    <div class="modal-auto-bar">
+                        <div class="modal-auto-bar-fill" id="modal-bar-fill"></div>
                     </div>
                 </div>
             </div>
@@ -48,8 +488,8 @@
     </div>
 
     <!-- Bottom Navigation -->
-    <div class="bottom-nav bg-white shadow">
-        <a href="index.html" class="nav-item"><i class="fa-solid fa-home"></i><span>Home</span></a>
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item"><i class="fa-solid fa-house"></i><span>Home</span></a>
         <a href="register.html" class="nav-item"><i class="fa-solid fa-user-plus"></i><span>Register</span></a>
         <a href="issue.html" class="nav-item active"><i class="fa-solid fa-qrcode"></i><span>Issue</span></a>
     </div>
@@ -60,5 +500,136 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
+
+    <script>
+    /* ── Issue Page UI Helpers ─────────────────────────────────────
+       Reads from localStorage key: 'issued_logs'
+       Structure: { "2025-06-01": { "FAM001": {name, count, time}, ... } }
+    ─────────────────────────────────────────────────────────────── */
+
+    const TODAY = new Date().toISOString().split('T')[0];
+
+    function getTodayData() {
+        try {
+            const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
+            return logs[TODAY] || {};
+        } catch(e) { return {}; }
+    }
+
+    function initials(name) {
+        if (!name) return '?';
+        const parts = name.trim().split(/\s+/);
+        return parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : name.slice(0, 2).toUpperCase();
+    }
+
+    /* ── Stats bar ─────────────────────────────────────────────── */
+    function updateStats() {
+        const data = getTodayData();
+        const entries = Object.values(data);
+        const families = entries.length;
+        const portions = entries.reduce((s, e) => s + (e.count || 0), 0);
+
+        document.getElementById('stat-issued-count').textContent = families;
+        document.getElementById('stat-portions-count').textContent = portions;
+
+        if (entries.length > 0) {
+            // Find the most recent time entry
+            const last = entries[entries.length - 1];
+            document.getElementById('stat-last-time').textContent = last.time || '—';
+        } else {
+            document.getElementById('stat-last-time').textContent = '—';
+        }
+    }
+
+    /* ── Recent issues list ────────────────────────────────────── */
+    function renderRecentIssues() {
+        const ul = document.getElementById('recent-issue-list');
+        const data = getTodayData();
+        const entries = Object.entries(data); // [[id, {name,count,time}], ...]
+
+        if (!entries.length) {
+            ul.innerHTML = '<li><div class="empty-state">' +
+                '<i class="fa-solid fa-bowl-food"></i>' +
+                '<p>No issues recorded today.<br>Scan a QR code to get started.</p>' +
+                '</div></li>';
+            return;
+        }
+
+        // Show latest first (reverse), max 30
+        const items = entries.slice().reverse().slice(0, 30);
+        ul.innerHTML = items.map(([id, r]) => {
+            const av = initials(r.name || '');
+            return '<li class="recent-item">' +
+                '<div class="item-avatar">' + av + '</div>' +
+                '<div class="item-info">' +
+                    '<div class="item-name">' + (r.name || 'Unknown') + '</div>' +
+                    '<div class="item-id">' + id + '</div>' +
+                    (r.time ? '<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> ' + r.time + '</div>' : '') +
+                '</div>' +
+                '<div class="item-badge">' +
+                    '<i class="fa-solid fa-bowl-food" style="font-size:.7rem;margin-right:3px"></i>' + (r.count || 1) +
+                '</div>' +
+                '</li>';
+        }).join('');
+    }
+
+    /* ── Refresh both on load ──────────────────────────────────── */
+    updateStats();
+    renderRecentIssues();
+
+    /* ── Patch localStorage to catch same-tab writes by app.js ─── */
+    const _origSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+        _origSetItem(key, value);
+        if (key === 'issued_logs') {
+            updateStats();
+            renderRecentIssues();
+        }
+    };
+
+    /* ── Also patch the modal show to restart the bar animation ── */
+    // app.js calls issueModalInstance.show() — we hook into the modal shown event
+    document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
+        // Restart the shrink bar animation by replacing the element
+        const bar = document.getElementById('modal-bar-fill');
+        if (bar) {
+            bar.style.animation = 'none';
+            bar.offsetHeight; // reflow
+            bar.style.animation = '';
+        }
+        // Show current time in modal
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeEl = document.getElementById('dist-time');
+        if (timeEl) timeEl.textContent = now;
+    });
+
+    /* ── Manual Lookup ─────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+        const manualInput = document.getElementById('manual-id-input');
+        const manualBtn   = document.getElementById('btn-manual-lookup');
+
+        function doManualIssue() {
+            const val = (manualInput.value || '').trim();
+            if (!val) {
+                Swal.fire({ icon: 'warning', title: 'Enter ID', text: 'Please type a membership number first.', timer: 1800, showConfirmButton: false });
+                return;
+            }
+            if (typeof handleDistributionScan === 'function') {
+                isProcessingScan = false;
+                handleDistributionScan(val);
+                manualInput.value = '';
+            } else {
+                Swal.fire({ icon: 'error', title: 'Not Ready', text: 'App not fully loaded yet.', timer: 1800, showConfirmButton: false });
+            }
+        }
+
+        manualBtn.addEventListener('click', doManualIssue);
+        manualInput.addEventListener('keydown', e => { if (e.key === 'Enter') doManualIssue(); });
+    });
+
+    window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
+    </script>
 </body>
 </html>
