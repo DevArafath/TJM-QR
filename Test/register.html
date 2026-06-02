@@ -394,6 +394,17 @@
                         <i class="fa-solid fa-stop me-1"></i> Stop Camera
                     </button>
                 </div>
+
+                <!-- Manual Membership Entry -->
+                <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);">
+                    <span class="manual-entry-label"><i class="fa-solid fa-keyboard" style="margin-right:5px;color:var(--gold)"></i>Manual Entry — Membership No.</span>
+                    <div class="manual-entry-row">
+                        <input type="text" class="manual-input" id="manual-id-input" placeholder="e.g. FAM-00123" autocomplete="off" />
+                        <button class="btn-manual-lookup" id="btn-manual-lookup">
+                            <i class="fa-solid fa-search me-1"></i> Look Up
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -463,6 +474,9 @@
                         <button class="num-btn">7</button>
                         <button class="num-btn">8</button>
                         <button class="num-btn">9</button>
+                        <button class="num-btn">10</button>
+                        <button class="num-btn">11</button>
+                        <button class="num-btn">12</button>
                     </div>
 
                     <div class="d-flex gap-2">
@@ -493,71 +507,98 @@
     <script src="app.js"></script>
 
     <script>
-    /* ── Recent Registrations UI helper ──────────────────────────── */
-    // This watches localStorage for changes made by app.js and renders the list.
-    // It assumes app.js stores registrations under the key "registered"
-    // as a JSON array of objects with at least: name, id, count, timestamp.
-    // Adjust key/field names below to match your actual app.js data shape.
-
-    const STORAGE_KEY = 'registered'; // ← change if app.js uses a different key
+    /* ── Recent Registrations ──────────────────────────────────────
+       app.js stores data in localStorage key: 'registered_families'
+       as a plain OBJECT keyed by ID: { "FAM001": {id, name, count}, ... }
+       We also track insertion order via a separate 'registered_order' array.
+    ─────────────────────────────────────────────────────────────── */
+    const STORAGE_KEY = 'registered_families';
+    const ORDER_KEY   = 'registered_order';  // we maintain this for ordering
 
     function initials(name) {
         if (!name) return '?';
         const parts = name.trim().split(/\s+/);
         return parts.length >= 2
-            ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
             : name.slice(0, 2).toUpperCase();
-    }
-
-    function timeAgo(ts) {
-        if (!ts) return '';
-        const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
-        if (diff < 60)    return 'Just now';
-        if (diff < 3600)  return Math.floor(diff/60) + ' min ago';
-        if (diff < 86400) return Math.floor(diff/3600) + ' hr ago';
-        return new Date(ts).toLocaleDateString();
     }
 
     function renderRecentList() {
         const ul = document.getElementById('recent-list');
-        let data = [];
-        try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) {}
+        let obj = {};
+        try { obj = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
 
-        if (!data.length) {
-            ul.innerHTML = `<li><div class="empty-state">
-                <i class="fa-solid fa-user-clock"></i>
-                <p>No registrations yet.<br>Scan a QR code to get started.</p>
-            </div></li>`;
+        const entries = Object.values(obj);
+
+        if (!entries.length) {
+            ul.innerHTML = '<li><div class="empty-state">' +
+                '<i class="fa-solid fa-user-clock"></i>' +
+                '<p>No registrations yet.<br>Scan a QR code to get started.</p>' +
+                '</div></li>';
             return;
         }
 
-        // Show latest 20, newest first
-        const items = [...data].reverse().slice(0, 20);
-        ul.innerHTML = items.map(r => `
-            <li class="recent-item">
-                <div class="item-avatar">${initials(r.name || r.fullName || '')}</div>
-                <div class="item-info">
-                    <div class="item-name">${r.name || r.fullName || 'Unknown'}</div>
-                    <div class="item-id">${r.id || r.familyId || ''}</div>
-                    ${r.timestamp ? `<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> ${timeAgo(r.timestamp)}</div>` : ''}
-                </div>
-                <div class="item-badge">
-                    <i class="fa-solid fa-users" style="font-size:.7rem;margin-right:3px"></i>${r.count || r.familyCount || 1}
-                </div>
-            </li>
-        `).join('');
+        // Show last 20 (Object.values preserves insertion order in modern JS)
+        const items = entries.slice().reverse().slice(0, 20);
+        ul.innerHTML = items.map(r => {
+            const av = initials(r.name || '');
+            const nm = r.name || 'Unknown';
+            const id = r.id || '';
+            const ct = r.count || 1;
+            return '<li class="recent-item">' +
+                '<div class="item-avatar">' + av + '</div>' +
+                '<div class="item-info">' +
+                    '<div class="item-name">' + nm + '</div>' +
+                    '<div class="item-id">' + id + '</div>' +
+                '</div>' +
+                '<div class="item-badge">' +
+                    '<i class="fa-solid fa-users" style="font-size:.7rem;margin-right:3px"></i>' + ct +
+                '</div>' +
+                '</li>';
+        }).join('');
     }
 
-    // Initial render
+    // Initial render on page load
     renderRecentList();
 
-    // Re-render whenever app.js saves to localStorage
-    window.addEventListener('storage', e => {
-        if (e.key === STORAGE_KEY) renderRecentList();
-    });
+    // Re-render when app.js writes to localStorage (same tab — use MutationObserver trick)
+    // Because 'storage' event only fires in OTHER tabs, we patch localStorage.setItem
+    const _origSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+        _origSetItem(key, value);
+        if (key === STORAGE_KEY) renderRecentList();
+    };
 
-    // Also expose a global so app.js can call refreshRecentList() after saving
+    // Expose global so app.js can call it directly too
     window.refreshRecentList = renderRecentList;
+
+    /* ── Manual Lookup ─────────────────────────────────────────────
+       Triggers the same handleRegistrationScan() from app.js so all
+       duplicate checking & modal logic is reused exactly.
+    ─────────────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+        const manualInput = document.getElementById('manual-id-input');
+        const manualBtn   = document.getElementById('btn-manual-lookup');
+
+        function doManualLookup() {
+            const val = (manualInput.value || '').trim();
+            if (!val) {
+                Swal.fire({ icon: 'warning', title: 'Enter ID', text: 'Please type a membership number first.', timer: 1800, showConfirmButton: false });
+                return;
+            }
+            // Reuse app.js scan handler — it does all validation & shows modal
+            if (typeof handleRegistrationScan === 'function') {
+                isProcessingScan = false; // reset lock so manual entry always works
+                handleRegistrationScan(val);
+                manualInput.value = '';
+            } else {
+                Swal.fire({ icon: 'error', title: 'Not Ready', text: 'App not fully loaded yet.', timer: 1800, showConfirmButton: false });
+            }
+        }
+
+        manualBtn.addEventListener('click', doManualLookup);
+        manualInput.addEventListener('keydown', e => { if (e.key === 'Enter') doManualLookup(); });
+    });
     </script>
 </body>
 </html>
