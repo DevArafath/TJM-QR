@@ -505,12 +505,12 @@
        Structure: { "2025-06-01": { "FAM001": {name, count, time}, ... } }
     ─────────────────────────────────────────────────────────────── */
 
-    const TODAY = new Date().toISOString().split('T')[0];
+    function getToday() { return new Date().toISOString().split('T')[0]; }
 
     function getTodayData() {
         try {
             const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
-            return logs[TODAY] || {};
+            return logs[getToday()] || {};
         } catch(e) { return {}; }
     }
 
@@ -626,6 +626,28 @@
         manualInput.addEventListener('keydown', e => { if (e.key === 'Enter') doManualIssue(); });
     });
 
+
+    /* ── Midnight rollover detector ────────────────────────────────
+       Checks every 30s if the date has changed since page load.
+       If yes, reloads the page so TODAY is fresh and yesterday's
+       scans no longer block new ones.
+    ─────────────────────────────────────────────────────────────── */
+    (function() {
+        const _loadedDate = getToday();
+        setInterval(() => {
+            if (getToday() !== _loadedDate) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'New Day Started',
+                    html: 'The date has changed to <strong>' + getToday() + '</strong>.<br>The page will reload so today's data is fresh.',
+                    timer: 4000,
+                    timerProgressBar: true,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            }
+        }, 30000);
+    })();
+
     window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
 
     /* ── Sound Engine ──────────────────────────────────────────────
@@ -699,7 +721,7 @@
     function resetIssuedLogs() {
         Swal.fire({
             title: 'Reset Today\'s Data?',
-            html: 'This will clear all issue records for <strong>' + TODAY + '</strong> from this device.<br><br>Make sure you have exported first!',
+            html: 'This will clear all issue records for <strong>' + getToday() + '</strong> from this device.<br><br>Make sure you have exported first!',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#c0392b',
@@ -710,7 +732,7 @@
             if (result.isConfirmed) {
                 try {
                     const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
-                    delete logs[TODAY];
+                    delete logs[getToday()];
                     _origSetItem('issued_logs', JSON.stringify(logs));
                 } catch(e) {}
                 updateStats();

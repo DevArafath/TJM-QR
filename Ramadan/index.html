@@ -445,10 +445,10 @@
        family size breakdown, today's log list, live clock.
     ─────────────────────────────────────────────────────────────── */
 
-    const TODAY = new Date().toISOString().split('T')[0];
+    function getToday() { return new Date().toISOString().split('T')[0]; }
 
     function getTodayIssued() {
-        try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[TODAY] || {}; } catch(e) { return {}; }
+        try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[getToday()] || {}; } catch(e) { return {}; }
     }
     function getPending() {
         try { return JSON.parse(localStorage.getItem('registered_families') || '{}'); } catch(e) { return {}; }
@@ -616,6 +616,17 @@
 
     /* ── Run on load ────────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', buildDashboard);
+
+
+    /* ── Midnight rollover detector ────────────────────────────────
+       Reloads the dashboard when the date changes so stats reset.
+    ─────────────────────────────────────────────────────────────── */
+    (function() {
+        const _loadedDate = getToday();
+        setInterval(() => {
+            if (getToday() !== _loadedDate) location.reload();
+        }, 30000);
+    })();
 
     /* ── Patch localStorage to auto-refresh when app.js writes ───── */
     const _origSetItem = localStorage.setItem.bind(localStorage);
