@@ -445,7 +445,14 @@
        family size breakdown, today's log list, live clock.
     ─────────────────────────────────────────────────────────────── */
 
-    function getToday() { return new Date().toISOString().split('T')[0]; }
+    function getToday() {
+        // Local date — avoids UTC shift making midnight scans appear on wrong day
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return y+'-'+m+'-'+day;
+    }
 
     function getTodayIssued() {
         try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[getToday()] || {}; } catch(e) { return {}; }

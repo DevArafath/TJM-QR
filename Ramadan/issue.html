@@ -500,283 +500,215 @@
     <script src="app.js"></script>
 
     <script>
-    /* ── Issue Page UI Helpers ─────────────────────────────────────
-       Reads from localStorage key: 'issued_logs'
-       Structure: { "2025-06-01": { "FAM001": {name, count, time}, ... } }
-    ─────────────────────────────────────────────────────────────── */
+    /* ══════════════════════════════════════════════════════════════
+       Issue Page — single clean script block
+       localStorage key : 'issued_logs'
+       Structure        : { "YYYY-MM-DD": { "ID": {name,count,time} } }
+    ══════════════════════════════════════════════════════════════ */
 
-    const TODAY = new Date().toISOString().split('T')[0];
+    /* ── Date helpers (always live, never stale) ──────────────── */
+    function getToday() {
+        // Use LOCAL date, not UTC — avoids midnight-hour timezone shifts
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return y + '-' + m + '-' + day;
+    }
 
     function getTodayData() {
-        try {
-            const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
-            return logs[TODAY] || {};
-        } catch(e) { return {}; }
+        try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[getToday()] || {}; }
+        catch(e) { return {}; }
     }
 
     function initials(name) {
         if (!name) return '?';
-        const parts = name.trim().split(/\s+/);
-        return parts.length >= 2
-            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-            : name.slice(0, 2).toUpperCase();
+        const p = name.trim().split(/\s+/);
+        return p.length >= 2 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : name.slice(0,2).toUpperCase();
     }
 
-    /* ── Stats bar ─────────────────────────────────────────────── */
+    /* ── Stats bar ────────────────────────────────────────────── */
     function updateStats() {
-        const data = getTodayData();
-        const entries = Object.values(data);
-        const families = entries.length;
-        const portions = entries.reduce((s, e) => s + (e.count || 0), 0);
-
-        document.getElementById('stat-issued-count').textContent = families;
-        document.getElementById('stat-portions-count').textContent = portions;
-
-        if (entries.length > 0) {
-            // Find the most recent time entry
-            const last = entries[entries.length - 1];
-
-        } else {
-        }
+        const entries = Object.values(getTodayData());
+        document.getElementById('stat-issued-count').textContent  = entries.length;
+        document.getElementById('stat-portions-count').textContent = entries.reduce((s,e)=>s+(e.count||0),0);
     }
 
-    /* ── Recent issues list ────────────────────────────────────── */
+    /* ── Recent issues list ───────────────────────────────────── */
     function renderRecentIssues() {
-        const ul = document.getElementById('recent-issue-list');
-        const data = getTodayData();
-        const entries = Object.entries(data); // [[id, {name,count,time}], ...]
-
+        const ul      = document.getElementById('recent-issue-list');
+        const entries = Object.entries(getTodayData());
         if (!entries.length) {
-            ul.innerHTML = '<li><div class="empty-state">' +
-                '<i class="fa-solid fa-bowl-food"></i>' +
-                '<p>No issues recorded today.<br>Scan a QR code to get started.</p>' +
-                '</div></li>';
+            ul.innerHTML = '<li><div class="empty-state"><i class="fa-solid fa-bowl-food"></i><p>No issues recorded today.<br>Scan a QR code to get started.</p></div></li>';
             return;
         }
-
-        // Show latest first (reverse), max 30
-        const items = entries.slice().reverse().slice(0, 30);
-        ul.innerHTML = items.map(([id, r]) => {
-            const av = initials(r.name || '');
-            return '<li class="recent-item">' +
-                '<div class="item-avatar">' + av + '</div>' +
-                '<div class="item-info">' +
-                    '<div class="item-name">' + (r.name || 'Unknown') + '</div>' +
-                    '<div class="item-id">' + id + '</div>' +
-                    (r.time ? '<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> ' + r.time + '</div>' : '') +
-                '</div>' +
-                '<div class="item-badge">' +
-                    '<i class="fa-solid fa-bowl-food" style="font-size:.7rem;margin-right:3px"></i>' + (r.count || 1) +
-                '</div>' +
-                '</li>';
-        }).join('');
+        ul.innerHTML = entries.slice().reverse().slice(0,30).map(([id,r]) =>
+            '<li class="recent-item">' +
+            '<div class="item-avatar">' + initials(r.name||'') + '</div>' +
+            '<div class="item-info">' +
+                '<div class="item-name">' + (r.name||'Unknown') + '</div>' +
+                '<div class="item-id">'  + id + '</div>' +
+                (r.time ? '<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> '+r.time+'</div>' : '') +
+            '</div>' +
+            '<div class="item-badge"><i class="fa-solid fa-bowl-food" style="font-size:.7rem;margin-right:3px"></i>'+(r.count||1)+'</div>' +
+            '</li>'
+        ).join('');
     }
 
-    /* ── Refresh both on load ──────────────────────────────────── */
+    /* ── Initial render ───────────────────────────────────────── */
     updateStats();
     renderRecentIssues();
 
-    /* ── Patch localStorage to catch same-tab writes by app.js ─── */
+    /* ── Patch localStorage so writes by app.js refresh UI ───── */
     const _origSetItem = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(key, value) {
         _origSetItem(key, value);
-        if (key === 'issued_logs') {
-            updateStats();
-            renderRecentIssues();
-        }
+        if (key === 'issued_logs') { updateStats(); renderRecentIssues(); }
     };
 
-    /* ── Also patch the modal show to restart the bar animation ── */
-    // app.js calls issueModalInstance.show() — we hook into the modal shown event
+    /* ── issueModal: single listener handling BOTH bar + sound ── */
     document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
-        // Restart the shrink bar animation by replacing the element
+        // 1. Restart shrink-bar animation
         const bar = document.getElementById('modal-bar-fill');
-        if (bar) {
-            bar.style.animation = 'none';
-            bar.offsetHeight; // reflow
-            bar.style.animation = '';
-        }
-        // Show current time in modal
-        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (bar) { bar.style.animation='none'; bar.offsetHeight; bar.style.animation=''; }
+
+        // 2. Show current time
         const timeEl = document.getElementById('dist-time');
-        if (timeEl) timeEl.textContent = now;
-    });
+        if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 
-    /* ── Manual Lookup ─────────────────────────────────────────── */
-    document.addEventListener('DOMContentLoaded', () => {
-        const manualInput = document.getElementById('manual-id-input');
-        const manualBtn   = document.getElementById('btn-manual-lookup');
-
-        function doManualIssue() {
-            const val = (manualInput.value || '').trim();
-            if (!val) {
-                Swal.fire({ icon: 'warning', title: 'Enter ID', text: 'Please type a membership number first.', timer: 1800, showConfirmButton: false });
-                return;
-            }
-            if (typeof handleDistributionScan === 'function') {
-                isProcessingScan = false;
-                handleDistributionScan(val);
-                manualInput.value = '';
-            } else {
-                Swal.fire({ icon: 'error', title: 'Not Ready', text: 'App not fully loaded yet.', timer: 1800, showConfirmButton: false });
-            }
-        }
-
-        manualBtn.addEventListener('click', doManualIssue);
-        manualInput.addEventListener('keydown', e => { if (e.key === 'Enter') doManualIssue(); });
-    });
-
-    window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
-
-    /* ── Sound Engine ──────────────────────────────────────────────
-       Plays sounds/[count].mp3 for successful scans (e.g. sounds/5.mp3)
-       Falls back to sounds/scan_beep.mp3 if the count file is missing.
-       sounds/scan_duplicate.mp3  — already issued today
-       sounds/scan_warning.mp3    — not found in registered.json
-    ─────────────────────────────────────────────────────────────── */
-    const _audioCache = {};
-
-    function _loadAudio(src) {
-        if (!_audioCache[src]) {
-            const a = new Audio(src);
-            a.preload = 'auto';
-            _audioCache[src] = a;
-        }
-        return _audioCache[src];
-    }
-
-    function playSound(name) {
-        const src = 'sounds/' + name + '.mp3';
-        const audio = _loadAudio(src);
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-    }
-
-    function playSoundForCount(count) {
-        // Try the count-specific file; if it errors, fall back to scan_beep
-        const src = 'sounds/' + count + '.mp3';
-        const audio = new Audio(src);
-        audio.preload = 'auto';
-        const fallback = () => { playSound('scan_beep'); };
-        audio.addEventListener('error', fallback);
-        audio.play().then(() => {
-            // Loaded fine — cache it
-            _audioCache[src] = audio;
-        }).catch(fallback);
-    }
-
-    /* ── Hook into app.js scan handlers via patching Swal & modal ─
-       We intercept the issueModal 'show' event for success,
-       and patch Swal.fire to detect warning/error toasts.
-    ─────────────────────────────────────────────────────────────── */
-
-    // Success: hook issueModal show event — read the count from the DOM
-    document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
-        const count = parseInt(document.getElementById('dist-count').textContent) || 0;
+        // 3. Play count sound
+        const count = parseInt((document.getElementById('dist-count')||{}).textContent) || 0;
         if (count > 0) playSoundForCount(count);
     });
 
-    // Duplicate / Not-found: patch Swal.fire to intercept known titles
+    /* ── Sound Engine ─────────────────────────────────────────── */
+    const _audioCache = {};
+    function _loadAudio(src) {
+        if (!_audioCache[src]) { const a=new Audio(src); a.preload='auto'; _audioCache[src]=a; }
+        return _audioCache[src];
+    }
+    function playSound(name) {
+        const audio = _loadAudio('sounds/'+name+'.mp3');
+        audio.currentTime = 0;
+        audio.play().catch(()=>{});
+    }
+    function playSoundForCount(count) {
+        const src = 'sounds/'+count+'.mp3';
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        audio.addEventListener('error', ()=>{ playSound('scan_beep'); });
+        audio.play().then(()=>{ _audioCache[src]=audio; }).catch(()=>{ playSound('scan_beep'); });
+    }
+
+    /* ── Swal patch: duplicate / not-found sounds ─────────────── */
     const _origSwalFire = Swal.fire.bind(Swal);
     Swal.fire = function(options, ...rest) {
-        // Handle both object and positional args
-        const opts = (typeof options === 'object' && options !== null) ? options : {};
-        const title = (opts.title || '').toLowerCase();
-        const text  = (opts.text  || '').toLowerCase();
-
+        const opts  = (typeof options==='object' && options!==null) ? options : {};
+        const title = (opts.title||'').toLowerCase();
+        const text  = (opts.text ||'').toLowerCase();
         if (title.includes('already issued') || text.includes('already received')) {
             playSound('scan_duplicate');
-        } else if (
-            title.includes('not registered') || title.includes('not found') ||
-            text.includes('not in registered') || text.includes('master list')
-        ) {
+        } else if (title.includes('not registered') || title.includes('not found') ||
+                   text.includes('not in registered') || text.includes('master list')) {
             playSound('scan_warning');
         }
         return _origSwalFire(options, ...rest);
     };
 
-    /* ── Reset today's issue logs ──────────────────────────────── */
+    /* ── Reset today's logs ───────────────────────────────────── */
     function resetIssuedLogs() {
         Swal.fire({
-            title: 'Reset Today\'s Data?',
-            html: 'This will clear all issue records for <strong>' + TODAY + '</strong> from this device.<br><br>Make sure you have exported first!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#c0392b',
-            cancelButtonColor: '#1a6b45',
+            title: "Reset Today\'s Data?",
+            html: 'This will clear all issue records for <strong>'+getToday()+'</strong> from this device.<br><br>Make sure you have exported first!',
+            icon: 'warning', showCancelButton: true,
+            confirmButtonColor: '#c0392b', cancelButtonColor: '#1a6b45',
             confirmButtonText: '<i class="fa-solid fa-rotate-left"></i> Yes, Reset',
             cancelButtonText: 'Cancel'
-        }).then(result => {
-            if (result.isConfirmed) {
-                try {
-                    const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
-                    delete logs[TODAY];
-                    _origSetItem('issued_logs', JSON.stringify(logs));
-                } catch(e) {}
-                updateStats();
-                renderRecentIssues();
-                Swal.fire({ icon: 'success', title: 'Reset!', text: "Today's issue data has been cleared.", timer: 1800, showConfirmButton: false });
-            }
+        }).then(r => {
+            if (!r.isConfirmed) return;
+            try {
+                const logs = JSON.parse(localStorage.getItem('issued_logs')||'{}');
+                delete logs[getToday()];
+                _origSetItem('issued_logs', JSON.stringify(logs));
+            } catch(e) {}
+            updateStats(); renderRecentIssues();
+            _origSwalFire({ icon:'success', title:'Reset!', text:"Today\'s issue data has been cleared.", timer:1800, showConfirmButton:false });
         });
     }
     window.resetIssuedLogs = resetIssuedLogs;
+    window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
 
-    /* ── Membership code auto-format (PR/001/1/O/G style) ─────────
-       Pattern: 2 letters / 3 digits / 1 digit / 1 letter / 1 letter
-       e.g. typing PR0011OG  →  PR/001/1/O/G
-    ─────────────────────────────────────────────────────────────── */
+    /* ── Midnight rollover ────────────────────────────────────── */
+    (function() {
+        const _loadedDate = getToday();
+        setInterval(() => {
+            if (getToday() !== _loadedDate) {
+                _origSwalFire({
+                    icon:'info', title:'New Day Started',
+                    html:'The date has changed to <strong>'+getToday()+'</strong>.<br>Reloading for a fresh start.',
+                    timer:4000, timerProgressBar:true, showConfirmButton:false
+                }).then(()=>location.reload());
+            }
+        }, 30000);
+    })();
+
+    /* ── Manual lookup + membership formatter (single DOMContentLoaded) */
     document.addEventListener('DOMContentLoaded', () => {
-        const inp = document.getElementById('manual-id-input');
-        if (!inp) return;
 
-        // Segment rules: [maxLength, type]  type: 'alpha'|'digit'|'any'
-        const SEGMENTS = [
-            { len: 2, type: 'alpha'  },  // PR
-            { len: 3, type: 'digit'  },  // 001
-            { len: 1, type: 'digit'  },  // 1
-            { len: 1, type: 'alpha'  },  // O
-            { len: 1, type: 'alpha'  },  // G
-        ];
-
-        function charAllowed(ch, type) {
-            if (type === 'alpha') return /[A-Z]/.test(ch);
-            if (type === 'digit') return /[0-9]/.test(ch);
-            return true;
+        // Manual issue
+        const manualInput = document.getElementById('manual-id-input');
+        const manualBtn   = document.getElementById('btn-manual-lookup');
+        if (manualInput && manualBtn) {
+            function doManualIssue() {
+                const val = (manualInput.value||'').trim();
+                if (!val) { Swal.fire({icon:'warning',title:'Enter ID',text:'Please type a membership number first.',timer:1800,showConfirmButton:false}); return; }
+                if (typeof handleDistributionScan==='function') {
+                    isProcessingScan=false; handleDistributionScan(val); manualInput.value='';
+                } else {
+                    Swal.fire({icon:'error',title:'Not Ready',text:'App not fully loaded yet.',timer:1800,showConfirmButton:false});
+                }
+            }
+            manualBtn.addEventListener('click', doManualIssue);
+            manualInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doManualIssue(); });
         }
 
+        // Membership code auto-formatter  PR/001/1/O/G
+        const inp = document.getElementById('manual-id-input');
+        if (!inp) return;
+        const SEGMENTS = [
+            {len:2,type:'alpha'}, {len:3,type:'digit'},
+            {len:1,type:'digit'}, {len:1,type:'alpha'}, {len:1,type:'alpha'}
+        ];
+        function charAllowed(ch,type) {
+            if (type==='alpha') return /[A-Z]/.test(ch);
+            if (type==='digit') return /[0-9]/.test(ch);
+            return true;
+        }
         function formatCode(raw) {
-            // Strip slashes and uppercase
-            const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            let result = '';
-            let pos = 0;
-            for (let s = 0; s < SEGMENTS.length && pos < clean.length; s++) {
-                const seg = SEGMENTS[s];
-                if (s > 0) result += '/';
-                let chunk = '';
-                while (chunk.length < seg.len && pos < clean.length) {
-                    const ch = clean[pos];
-                    if (charAllowed(ch, seg.type)) {
-                        chunk += ch;
-                    }
-                    pos++;
+            const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
+            let result='', pos=0;
+            for (let s=0; s<SEGMENTS.length && pos<clean.length; s++) {
+                const seg=SEGMENTS[s];
+                if (s>0) result+='/';
+                let chunk='';
+                while (chunk.length<seg.len && pos<clean.length) {
+                    const ch=clean[pos++];
+                    if (charAllowed(ch,seg.type)) chunk+=ch;
                 }
-                result += chunk;
+                result+=chunk;
             }
             return result;
         }
-
         inp.addEventListener('input', function() {
-            const sel = this.selectionStart;
-            const rawBefore = this.value.slice(0, sel).replace(/[^A-Z0-9]/gi, '').length;
+            const rawBefore = this.value.slice(0,this.selectionStart).replace(/[^A-Z0-9]/gi,'').length;
             this.value = formatCode(this.value);
-            // Restore cursor to end of the clean chars typed so far
-            let rawCount = 0, newPos = 0;
-            for (let i = 0; i < this.value.length; i++) {
-                if (this.value[i] !== '/') rawCount++;
-                if (rawCount >= rawBefore) { newPos = i + 1; break; }
-                newPos = i + 1;
+            let rawCount=0, newPos=0;
+            for (let i=0; i<this.value.length; i++) {
+                if (this.value[i]!=='/') rawCount++;
+                newPos=i+1;
+                if (rawCount>=rawBefore) break;
             }
-            this.setSelectionRange(newPos, newPos);
+            this.setSelectionRange(newPos,newPos);
         });
     });
     </script>
