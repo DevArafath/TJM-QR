@@ -504,6 +504,18 @@
     }
 
     /* ── Hourly chart ───────────────────────────────────────────── */
+    function parseHour(timeStr) {
+        // Handles "14:35:10" (24h) AND "2:35:10 PM" / "2:35:10 pm" (12h locale strings)
+        if (!timeStr) return null;
+        const upper = timeStr.toUpperCase();
+        const parts  = timeStr.replace(/\s*(AM|PM)/i, '').split(':');
+        let h = parseInt(parts[0]);
+        if (isNaN(h)) return null;
+        if (upper.includes('PM') && h !== 12) h += 12;
+        if (upper.includes('AM') && h === 12) h = 0;
+        return h;
+    }
+
     function buildHourlyChart(issued) {
         const wrap = document.getElementById('hourly-chart-wrap');
         // Bucket issues into hours 5..22
@@ -511,9 +523,10 @@
         for (let h = 5; h <= 22; h++) hours[h] = 0;
 
         Object.values(issued).forEach(e => {
-            if (!e.time) return;
-            const h = parseInt(e.time.split(':')[0]);
-            if (h >= 5 && h <= 22) hours[h]++;
+            const h = parseHour(e.time);
+            if (h === null) return;
+            const bucket = Math.min(Math.max(h, 5), 22);
+            hours[bucket]++;
         });
 
         const vals = Object.values(hours);
@@ -604,7 +617,7 @@
     /* ── Run on load ────────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', buildDashboard);
 
-    /* ── Patch localStorage to auto-refresh when issue.html writes ─ */
+    /* ── Patch localStorage to auto-refresh when app.js writes ───── */
     const _origSetItem = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(key, value) {
         _origSetItem(key, value);
@@ -613,6 +626,9 @@
             buildDashboard();
         }
     };
+
+    /* ── Polling fallback every 3s in case same-tab patch is bypassed */
+    setInterval(buildDashboard, 3000);
     </script>
 
 </body>
