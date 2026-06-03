@@ -500,217 +500,193 @@
     <script src="app.js"></script>
 
     <script>
-    /* ══════════════════════════════════════════════════════════════
-       Issue Page — single clean script block
-       localStorage key : 'issued_logs'
-       Structure        : { "YYYY-MM-DD": { "ID": {name,count,time} } }
-    ══════════════════════════════════════════════════════════════ */
+    /* Issue Page — UI, sound, formatting */
 
-    /* ── Date helpers (always live, never stale) ──────────────── */
+    // ── Local date (never UTC) ──────────────────────────────────
     function getToday() {
-        // Use LOCAL date, not UTC — avoids midnight-hour timezone shifts
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth()+1).padStart(2,'0');
-        const day = String(d.getDate()).padStart(2,'0');
-        return y + '-' + m + '-' + day;
+        const d=new Date();
+        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     }
-
     function getTodayData() {
-        try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[getToday()] || {}; }
-        catch(e) { return {}; }
+        try { return JSON.parse(localStorage.getItem('issued_logs')||'{}')[getToday()]||{}; }
+        catch(e){ return {}; }
     }
-
     function initials(name) {
-        if (!name) return '?';
-        const p = name.trim().split(/\s+/);
-        return p.length >= 2 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : name.slice(0,2).toUpperCase();
+        if(!name) return '?';
+        const p=name.trim().split(/\s+/);
+        return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():name.slice(0,2).toUpperCase();
     }
 
-    /* ── Stats bar ────────────────────────────────────────────── */
+    // ── Stats ───────────────────────────────────────────────────
     function updateStats() {
-        const entries = Object.values(getTodayData());
-        document.getElementById('stat-issued-count').textContent  = entries.length;
-        document.getElementById('stat-portions-count').textContent = entries.reduce((s,e)=>s+(e.count||0),0);
+        const entries=Object.values(getTodayData());
+        document.getElementById('stat-issued-count').textContent=entries.length;
+        document.getElementById('stat-portions-count').textContent=entries.reduce((s,e)=>s+(e.count||0),0);
     }
 
-    /* ── Recent issues list ───────────────────────────────────── */
+    // ── Recent list ─────────────────────────────────────────────
     function renderRecentIssues() {
-        const ul      = document.getElementById('recent-issue-list');
-        const entries = Object.entries(getTodayData());
-        if (!entries.length) {
-            ul.innerHTML = '<li><div class="empty-state"><i class="fa-solid fa-bowl-food"></i><p>No issues recorded today.<br>Scan a QR code to get started.</p></div></li>';
+        const ul=document.getElementById('recent-issue-list');
+        if(!ul) return;
+        const entries=Object.entries(getTodayData());
+        if(!entries.length){
+            ul.innerHTML='<li><div class="empty-state"><i class="fa-solid fa-bowl-food"></i><p>No issues recorded today.<br>Scan a QR code to get started.</p></div></li>';
             return;
         }
-        ul.innerHTML = entries.slice().reverse().slice(0,30).map(([id,r]) =>
-            '<li class="recent-item">' +
-            '<div class="item-avatar">' + initials(r.name||'') + '</div>' +
-            '<div class="item-info">' +
-                '<div class="item-name">' + (r.name||'Unknown') + '</div>' +
-                '<div class="item-id">'  + id + '</div>' +
-                (r.time ? '<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> '+r.time+'</div>' : '') +
-            '</div>' +
-            '<div class="item-badge"><i class="fa-solid fa-bowl-food" style="font-size:.7rem;margin-right:3px"></i>'+(r.count||1)+'</div>' +
-            '</li>'
-        ).join('');
+        ul.innerHTML=entries.slice().reverse().slice(0,30).map(function(pair){
+            var id=pair[0], r=pair[1];
+            return '<li class="recent-item">'+
+                '<div class="item-avatar">'+initials(r.name||'')+'</div>'+
+                '<div class="item-info">'+
+                    '<div class="item-name">'+(r.name||'Unknown')+'</div>'+
+                    '<div class="item-id">'+id+'</div>'+
+                    (r.time?'<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> '+r.time+'</div>':'')+
+                '</div>'+
+                '<div class="item-badge"><i class="fa-solid fa-bowl-food" style="font-size:.7rem;margin-right:3px"></i>'+(r.count||1)+'</div>'+
+            '</li>';
+        }).join('');
     }
 
-    /* ── Initial render ───────────────────────────────────────── */
+    // Run immediately — DOM is ready since this script is at end of body
     updateStats();
     renderRecentIssues();
 
-    /* ── Patch localStorage so writes by app.js refresh UI ───── */
-    const _origSetItem = localStorage.setItem.bind(localStorage);
-    localStorage.setItem = function(key, value) {
-        _origSetItem(key, value);
-        if (key === 'issued_logs') { updateStats(); renderRecentIssues(); }
+    // ── Patch localStorage ──────────────────────────────────────
+    var _origSetItem=localStorage.setItem.bind(localStorage);
+    localStorage.setItem=function(key,value){
+        _origSetItem(key,value);
+        if(key==='issued_logs'){ updateStats(); renderRecentIssues(); }
     };
 
-    /* ── issueModal: single listener handling BOTH bar + sound ── */
-    document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
-        // 1. Restart shrink-bar animation
-        const bar = document.getElementById('modal-bar-fill');
-        if (bar) { bar.style.animation='none'; bar.offsetHeight; bar.style.animation=''; }
-
-        // 2. Show current time
-        const timeEl = document.getElementById('dist-time');
-        if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-
-        // 3. Play count sound
-        const count = parseInt((document.getElementById('dist-count')||{}).textContent) || 0;
-        if (count > 0) playSoundForCount(count);
-    });
-
-    /* ── Sound Engine ─────────────────────────────────────────── */
-    const _audioCache = {};
-    function _loadAudio(src) {
-        if (!_audioCache[src]) { const a=new Audio(src); a.preload='auto'; _audioCache[src]=a; }
+    // ── Sound engine ────────────────────────────────────────────
+    var _audioCache={};
+    function _loadAudio(src){
+        if(!_audioCache[src]){ var a=new Audio(src); a.preload='auto'; _audioCache[src]=a; }
         return _audioCache[src];
     }
-    function playSound(name) {
-        const audio = _loadAudio('sounds/'+name+'.mp3');
-        audio.currentTime = 0;
-        audio.play().catch(()=>{});
+    function playSound(name){
+        var audio=_loadAudio('sounds/'+name+'.mp3');
+        audio.currentTime=0;
+        audio.play().catch(function(){});
     }
-    function playSoundForCount(count) {
-        const src = 'sounds/'+count+'.mp3';
-        const audio = new Audio(src);
-        audio.preload = 'auto';
-        audio.addEventListener('error', ()=>{ playSound('scan_beep'); });
-        audio.play().then(()=>{ _audioCache[src]=audio; }).catch(()=>{ playSound('scan_beep'); });
+    function playSoundForCount(count){
+        var src='sounds/'+count+'.mp3';
+        var audio=new Audio(src);
+        audio.preload='auto';
+        audio.addEventListener('error',function(){ playSound('scan_beep'); });
+        audio.play().then(function(){ _audioCache[src]=audio; }).catch(function(){ playSound('scan_beep'); });
     }
 
-    /* ── Swal patch: duplicate / not-found sounds ─────────────── */
-    const _origSwalFire = Swal.fire.bind(Swal);
-    Swal.fire = function(options, ...rest) {
-        const opts  = (typeof options==='object' && options!==null) ? options : {};
-        const title = (opts.title||'').toLowerCase();
-        const text  = (opts.text ||'').toLowerCase();
-        if (title.includes('already issued') || text.includes('already received')) {
+    // ── Swal patch for sounds ───────────────────────────────────
+    var _origSwalFire=Swal.fire.bind(Swal);
+    Swal.fire=function(options){
+        var rest=Array.prototype.slice.call(arguments,1);
+        var opts=(typeof options==='object'&&options!==null)?options:{};
+        var title=(opts.title||'').toLowerCase();
+        var text=(opts.text||'').toLowerCase();
+        if(title.indexOf('already issued')>-1||text.indexOf('already received')>-1){
             playSound('scan_duplicate');
-        } else if (title.includes('not registered') || title.includes('not found') ||
-                   text.includes('not in registered') || text.includes('master list')) {
+        } else if(title.indexOf('not registered')>-1||title.indexOf('not found')>-1||
+                  text.indexOf('not in registered')>-1||text.indexOf('master list')>-1){
             playSound('scan_warning');
         }
-        return _origSwalFire(options, ...rest);
+        return _origSwalFire.apply(Swal,[options].concat(rest));
     };
 
-    /* ── Reset today's logs ───────────────────────────────────── */
-    function resetIssuedLogs() {
-        Swal.fire({
-            title: "Reset Today\'s Data?",
-            html: 'This will clear all issue records for <strong>'+getToday()+'</strong> from this device.<br><br>Make sure you have exported first!',
-            icon: 'warning', showCancelButton: true,
-            confirmButtonColor: '#c0392b', cancelButtonColor: '#1a6b45',
-            confirmButtonText: '<i class="fa-solid fa-rotate-left"></i> Yes, Reset',
-            cancelButtonText: 'Cancel'
-        }).then(r => {
-            if (!r.isConfirmed) return;
-            try {
-                const logs = JSON.parse(localStorage.getItem('issued_logs')||'{}');
-                delete logs[getToday()];
-                _origSetItem('issued_logs', JSON.stringify(logs));
-            } catch(e) {}
-            updateStats(); renderRecentIssues();
-            _origSwalFire({ icon:'success', title:'Reset!', text:"Today\'s issue data has been cleared.", timer:1800, showConfirmButton:false });
+    // ── issueModal: animation + time + sound ───────────────────
+    var issueModalEl=document.getElementById('issueModal');
+    if(issueModalEl){
+        issueModalEl.addEventListener('show.bs.modal',function(){
+            var bar=document.getElementById('modal-bar-fill');
+            if(bar){ bar.style.animation='none'; bar.offsetHeight; bar.style.animation=''; }
+            var timeEl=document.getElementById('dist-time');
+            if(timeEl) timeEl.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            var countEl=document.getElementById('dist-count');
+            var count=countEl?parseInt(countEl.textContent)||0:0;
+            if(count>0) playSoundForCount(count);
         });
     }
-    window.resetIssuedLogs = resetIssuedLogs;
-    window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
 
-    /* ── Midnight rollover ────────────────────────────────────── */
-    (function() {
-        const _loadedDate = getToday();
-        setInterval(() => {
-            if (getToday() !== _loadedDate) {
-                _origSwalFire({
-                    icon:'info', title:'New Day Started',
-                    html:'The date has changed to <strong>'+getToday()+'</strong>.<br>Reloading for a fresh start.',
-                    timer:4000, timerProgressBar:true, showConfirmButton:false
-                }).then(()=>location.reload());
+    // ── Reset today logs ────────────────────────────────────────
+    function resetIssuedLogs(){
+        _origSwalFire({
+            title:"Reset Today's Data?",
+            html:'This will clear all issue records for <strong>'+getToday()+'</strong>.<br>Make sure you exported first!',
+            icon:'warning',showCancelButton:true,
+            confirmButtonColor:'#c0392b',cancelButtonColor:'#1a6b45',
+            confirmButtonText:'Yes, Reset',cancelButtonText:'Cancel'
+        }).then(function(r){
+            if(!r.isConfirmed) return;
+            try{
+                var logs=JSON.parse(localStorage.getItem('issued_logs')||'{}');
+                delete logs[getToday()];
+                _origSetItem('issued_logs',JSON.stringify(logs));
+            }catch(e){}
+            updateStats(); renderRecentIssues();
+            _origSwalFire({icon:'success',title:'Reset!',text:"Today's issue data cleared.",timer:1800,showConfirmButton:false});
+        });
+    }
+    window.resetIssuedLogs=resetIssuedLogs;
+    window.refreshRecentIssues=function(){ updateStats(); renderRecentIssues(); };
+
+    // ── Midnight rollover ───────────────────────────────────────
+    (function(){
+        var _loadedDate=getToday();
+        setInterval(function(){
+            if(getToday()!==_loadedDate){
+                _origSwalFire({icon:'info',title:'New Day',
+                    html:'Date changed to <strong>'+getToday()+'</strong>. Reloading.',
+                    timer:4000,timerProgressBar:true,showConfirmButton:false
+                }).then(function(){ location.reload(); });
             }
-        }, 30000);
+        },30000);
     })();
 
-    /* ── Manual lookup + membership formatter (single DOMContentLoaded) */
-    document.addEventListener('DOMContentLoaded', () => {
-
-        // Manual issue
-        const manualInput = document.getElementById('manual-id-input');
-        const manualBtn   = document.getElementById('btn-manual-lookup');
-        if (manualInput && manualBtn) {
-            function doManualIssue() {
-                const val = (manualInput.value||'').trim();
-                if (!val) { Swal.fire({icon:'warning',title:'Enter ID',text:'Please type a membership number first.',timer:1800,showConfirmButton:false}); return; }
-                if (typeof handleDistributionScan==='function') {
-                    isProcessingScan=false; handleDistributionScan(val); manualInput.value='';
-                } else {
-                    Swal.fire({icon:'error',title:'Not Ready',text:'App not fully loaded yet.',timer:1800,showConfirmButton:false});
-                }
+    // ── Manual lookup ───────────────────────────────────────────
+    var manualInput=document.getElementById('manual-id-input');
+    var manualBtn=document.getElementById('btn-manual-lookup');
+    if(manualInput&&manualBtn){
+        function doManualIssue(){
+            var val=(manualInput.value||'').trim();
+            if(!val){ Swal.fire({icon:'warning',title:'Enter ID',text:'Type a membership number first.',timer:1800,showConfirmButton:false}); return; }
+            if(typeof handleDistributionScan==='function'){
+                isProcessingScan=false; handleDistributionScan(val); manualInput.value='';
+            } else {
+                Swal.fire({icon:'error',title:'Not Ready',text:'App not loaded yet.',timer:1800,showConfirmButton:false});
             }
-            manualBtn.addEventListener('click', doManualIssue);
-            manualInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doManualIssue(); });
         }
+        manualBtn.addEventListener('click',doManualIssue);
+        manualInput.addEventListener('keydown',function(e){ if(e.key==='Enter') doManualIssue(); });
+    }
 
-        // Membership code auto-formatter  PR/001/1/O/G
-        const inp = document.getElementById('manual-id-input');
-        if (!inp) return;
-        const SEGMENTS = [
-            {len:2,type:'alpha'}, {len:3,type:'digit'},
-            {len:1,type:'digit'}, {len:1,type:'alpha'}, {len:1,type:'alpha'}
-        ];
-        function charAllowed(ch,type) {
-            if (type==='alpha') return /[A-Z]/.test(ch);
-            if (type==='digit') return /[0-9]/.test(ch);
-            return true;
-        }
-        function formatCode(raw) {
-            const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
-            let result='', pos=0;
-            for (let s=0; s<SEGMENTS.length && pos<clean.length; s++) {
-                const seg=SEGMENTS[s];
-                if (s>0) result+='/';
-                let chunk='';
-                while (chunk.length<seg.len && pos<clean.length) {
-                    const ch=clean[pos++];
-                    if (charAllowed(ch,seg.type)) chunk+=ch;
-                }
+    // ── Membership formatter PR/001/1/O/G ───────────────────────
+    if(manualInput){
+        var SEGMENTS=[{len:2,type:'alpha'},{len:3,type:'digit'},{len:1,type:'digit'},{len:1,type:'alpha'},{len:1,type:'alpha'}];
+        function charOK(ch,type){ return type==='alpha'?/[A-Z]/.test(ch):type==='digit'?/[0-9]/.test(ch):true; }
+        function formatCode(raw){
+            var clean=raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
+            var result='',pos=0;
+            for(var s=0;s<SEGMENTS.length&&pos<clean.length;s++){
+                var seg=SEGMENTS[s];
+                if(s>0) result+='/';
+                var chunk='';
+                while(chunk.length<seg.len&&pos<clean.length){ var ch=clean[pos++]; if(charOK(ch,seg.type)) chunk+=ch; }
                 result+=chunk;
             }
             return result;
         }
-        inp.addEventListener('input', function() {
-            const rawBefore = this.value.slice(0,this.selectionStart).replace(/[^A-Z0-9]/gi,'').length;
-            this.value = formatCode(this.value);
-            let rawCount=0, newPos=0;
-            for (let i=0; i<this.value.length; i++) {
-                if (this.value[i]!=='/') rawCount++;
+        manualInput.addEventListener('input',function(){
+            var rawBefore=this.value.slice(0,this.selectionStart).replace(/[^A-Z0-9]/gi,'').length;
+            this.value=formatCode(this.value);
+            var rawCount=0,newPos=0;
+            for(var i=0;i<this.value.length;i++){
+                if(this.value[i]!=='/') rawCount++;
                 newPos=i+1;
-                if (rawCount>=rawBefore) break;
+                if(rawCount>=rawBefore) break;
             }
             this.setSelectionRange(newPos,newPos);
         });
-    });
+    }
     </script>
 </body>
 </html>
