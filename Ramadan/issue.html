@@ -500,193 +500,285 @@
     <script src="app.js"></script>
 
     <script>
-    /* Issue Page — UI, sound, formatting */
+    /* ── Issue Page UI Helpers ─────────────────────────────────────
+       Reads from localStorage key: 'issued_logs'
+       Structure: { "2025-06-01": { "FAM001": {name, count, time}, ... } }
+    ─────────────────────────────────────────────────────────────── */
 
-    // ── Local date (never UTC) ──────────────────────────────────
-    function getToday() {
-        const d=new Date();
-        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    }
+    const TODAY = new Date().toISOString().split('T')[0];
+
     function getTodayData() {
-        try { return JSON.parse(localStorage.getItem('issued_logs')||'{}')[getToday()]||{}; }
-        catch(e){ return {}; }
+        try {
+            const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
+            return logs[TODAY] || {};
+        } catch(e) { return {}; }
     }
+
     function initials(name) {
-        if(!name) return '?';
-        const p=name.trim().split(/\s+/);
-        return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():name.slice(0,2).toUpperCase();
+        if (!name) return '?';
+        const parts = name.trim().split(/\s+/);
+        return parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : name.slice(0, 2).toUpperCase();
     }
 
-    // ── Stats ───────────────────────────────────────────────────
+    /* ── Stats bar ─────────────────────────────────────────────── */
     function updateStats() {
-        const entries=Object.values(getTodayData());
-        document.getElementById('stat-issued-count').textContent=entries.length;
-        document.getElementById('stat-portions-count').textContent=entries.reduce((s,e)=>s+(e.count||0),0);
+        const data = getTodayData();
+        const entries = Object.values(data);
+        const families = entries.length;
+        const portions = entries.reduce((s, e) => s + (e.count || 0), 0);
+
+        document.getElementById('stat-issued-count').textContent = families;
+        document.getElementById('stat-portions-count').textContent = portions;
+
+        if (entries.length > 0) {
+            // Find the most recent time entry
+            const last = entries[entries.length - 1];
+
+        } else {
+        }
     }
 
-    // ── Recent list ─────────────────────────────────────────────
+    /* ── Recent issues list ────────────────────────────────────── */
     function renderRecentIssues() {
-        const ul=document.getElementById('recent-issue-list');
-        if(!ul) return;
-        const entries=Object.entries(getTodayData());
-        if(!entries.length){
-            ul.innerHTML='<li><div class="empty-state"><i class="fa-solid fa-bowl-food"></i><p>No issues recorded today.<br>Scan a QR code to get started.</p></div></li>';
+        const ul = document.getElementById('recent-issue-list');
+        const data = getTodayData();
+        const entries = Object.entries(data); // [[id, {name,count,time}], ...]
+
+        if (!entries.length) {
+            ul.innerHTML = '<li><div class="empty-state">' +
+                '<i class="fa-solid fa-bowl-food"></i>' +
+                '<p>No issues recorded today.<br>Scan a QR code to get started.</p>' +
+                '</div></li>';
             return;
         }
-        ul.innerHTML=entries.slice().reverse().slice(0,30).map(function(pair){
-            var id=pair[0], r=pair[1];
-            return '<li class="recent-item">'+
-                '<div class="item-avatar">'+initials(r.name||'')+'</div>'+
-                '<div class="item-info">'+
-                    '<div class="item-name">'+(r.name||'Unknown')+'</div>'+
-                    '<div class="item-id">'+id+'</div>'+
-                    (r.time?'<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> '+r.time+'</div>':'')+
-                '</div>'+
-                '<div class="item-badge"><i class="fa-solid fa-bowl-food" style="font-size:.7rem;margin-right:3px"></i>'+(r.count||1)+'</div>'+
-            '</li>';
+
+        // Show latest first (reverse), max 30
+        const items = entries.slice().reverse().slice(0, 30);
+        ul.innerHTML = items.map(([id, r]) => {
+            const av = initials(r.name || '');
+            return '<li class="recent-item">' +
+                '<div class="item-avatar">' + av + '</div>' +
+                '<div class="item-info">' +
+                    '<div class="item-name">' + (r.name || 'Unknown') + '</div>' +
+                    '<div class="item-id">' + id + '</div>' +
+                    (r.time ? '<div class="item-time"><i class="fa-regular fa-clock" style="font-size:.65rem"></i> ' + r.time + '</div>' : '') +
+                '</div>' +
+                '<div class="item-badge">' +
+                    '<i class="fa-solid fa-bowl-food" style="font-size:.7rem;margin-right:3px"></i>' + (r.count || 1) +
+                '</div>' +
+                '</li>';
         }).join('');
     }
 
-    // Run immediately — DOM is ready since this script is at end of body
+    /* ── Refresh both on load ──────────────────────────────────── */
     updateStats();
     renderRecentIssues();
 
-    // ── Patch localStorage ──────────────────────────────────────
-    var _origSetItem=localStorage.setItem.bind(localStorage);
-    localStorage.setItem=function(key,value){
-        _origSetItem(key,value);
-        if(key==='issued_logs'){ updateStats(); renderRecentIssues(); }
+    /* ── Patch localStorage to catch same-tab writes by app.js ─── */
+    const _origSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+        _origSetItem(key, value);
+        if (key === 'issued_logs') {
+            updateStats();
+            renderRecentIssues();
+        }
     };
 
-    // ── Sound engine ────────────────────────────────────────────
-    var _audioCache={};
-    function _loadAudio(src){
-        if(!_audioCache[src]){ var a=new Audio(src); a.preload='auto'; _audioCache[src]=a; }
+    /* ── Also patch the modal show to restart the bar animation ── */
+    // app.js calls issueModalInstance.show() — we hook into the modal shown event
+    document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
+        // Restart the shrink bar animation by replacing the element
+        const bar = document.getElementById('modal-bar-fill');
+        if (bar) {
+            bar.style.animation = 'none';
+            bar.offsetHeight; // reflow
+            bar.style.animation = '';
+        }
+        // Show current time in modal
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeEl = document.getElementById('dist-time');
+        if (timeEl) timeEl.textContent = now;
+    });
+
+    /* ── Manual Lookup ─────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+        const manualInput = document.getElementById('manual-id-input');
+        const manualBtn   = document.getElementById('btn-manual-lookup');
+
+        function doManualIssue() {
+            const val = (manualInput.value || '').trim();
+            if (!val) {
+                Swal.fire({ icon: 'warning', title: 'Enter ID', text: 'Please type a membership number first.', timer: 1800, showConfirmButton: false });
+                return;
+            }
+            if (typeof handleDistributionScan === 'function') {
+                isProcessingScan = false;
+                handleDistributionScan(val);
+                manualInput.value = '';
+            } else {
+                Swal.fire({ icon: 'error', title: 'Not Ready', text: 'App not fully loaded yet.', timer: 1800, showConfirmButton: false });
+            }
+        }
+
+        manualBtn.addEventListener('click', doManualIssue);
+        manualInput.addEventListener('keydown', e => { if (e.key === 'Enter') doManualIssue(); });
+    });
+
+    window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
+
+    /* ── Sound Engine ──────────────────────────────────────────────
+       Plays sounds/[count].mp3 for successful scans (e.g. sounds/5.mp3)
+       Falls back to sounds/scan_beep.mp3 if the count file is missing.
+       sounds/scan_duplicate.mp3  — already issued today
+       sounds/scan_warning.mp3    — not found in registered.json
+    ─────────────────────────────────────────────────────────────── */
+    const _audioCache = {};
+
+    function _loadAudio(src) {
+        if (!_audioCache[src]) {
+            const a = new Audio(src);
+            a.preload = 'auto';
+            _audioCache[src] = a;
+        }
         return _audioCache[src];
     }
-    function playSound(name){
-        var audio=_loadAudio('sounds/'+name+'.mp3');
-        audio.currentTime=0;
-        audio.play().catch(function(){});
-    }
-    function playSoundForCount(count){
-        var src='sounds/'+count+'.mp3';
-        var audio=new Audio(src);
-        audio.preload='auto';
-        audio.addEventListener('error',function(){ playSound('scan_beep'); });
-        audio.play().then(function(){ _audioCache[src]=audio; }).catch(function(){ playSound('scan_beep'); });
+
+    function playSound(name) {
+        const src = 'sounds/' + name + '.mp3';
+        const audio = _loadAudio(src);
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
     }
 
-    // ── Swal patch for sounds ───────────────────────────────────
-    var _origSwalFire=Swal.fire.bind(Swal);
-    Swal.fire=function(options){
-        var rest=Array.prototype.slice.call(arguments,1);
-        var opts=(typeof options==='object'&&options!==null)?options:{};
-        var title=(opts.title||'').toLowerCase();
-        var text=(opts.text||'').toLowerCase();
-        if(title.indexOf('already issued')>-1||text.indexOf('already received')>-1){
+    function playSoundForCount(count) {
+        // Try the count-specific file; if it errors, fall back to scan_beep
+        const src = 'sounds/' + count + '.mp3';
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        const fallback = () => { playSound('scan_beep'); };
+        audio.addEventListener('error', fallback);
+        audio.play().then(() => {
+            // Loaded fine — cache it
+            _audioCache[src] = audio;
+        }).catch(fallback);
+    }
+
+    /* ── Hook into app.js scan handlers via patching Swal & modal ─
+       We intercept the issueModal 'show' event for success,
+       and patch Swal.fire to detect warning/error toasts.
+    ─────────────────────────────────────────────────────────────── */
+
+    // Success: hook issueModal show event — read the count from the DOM
+    document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
+        const count = parseInt(document.getElementById('dist-count').textContent) || 0;
+        if (count > 0) playSoundForCount(count);
+    });
+
+    // Duplicate / Not-found: patch Swal.fire to intercept known titles
+    const _origSwalFire = Swal.fire.bind(Swal);
+    Swal.fire = function(options, ...rest) {
+        // Handle both object and positional args
+        const opts = (typeof options === 'object' && options !== null) ? options : {};
+        const title = (opts.title || '').toLowerCase();
+        const text  = (opts.text  || '').toLowerCase();
+
+        if (title.includes('already issued') || text.includes('already received')) {
             playSound('scan_duplicate');
-        } else if(title.indexOf('not registered')>-1||title.indexOf('not found')>-1||
-                  text.indexOf('not in registered')>-1||text.indexOf('master list')>-1){
+        } else if (
+            title.includes('not registered') || title.includes('not found') ||
+            text.includes('not in registered') || text.includes('master list')
+        ) {
             playSound('scan_warning');
         }
-        return _origSwalFire.apply(Swal,[options].concat(rest));
+        return _origSwalFire(options, ...rest);
     };
 
-    // ── issueModal: animation + time + sound ───────────────────
-    var issueModalEl=document.getElementById('issueModal');
-    if(issueModalEl){
-        issueModalEl.addEventListener('show.bs.modal',function(){
-            var bar=document.getElementById('modal-bar-fill');
-            if(bar){ bar.style.animation='none'; bar.offsetHeight; bar.style.animation=''; }
-            var timeEl=document.getElementById('dist-time');
-            if(timeEl) timeEl.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-            var countEl=document.getElementById('dist-count');
-            var count=countEl?parseInt(countEl.textContent)||0:0;
-            if(count>0) playSoundForCount(count);
+    /* ── Reset today's issue logs ──────────────────────────────── */
+    function resetIssuedLogs() {
+        Swal.fire({
+            title: 'Reset Today\'s Data?',
+            html: 'This will clear all issue records for <strong>' + TODAY + '</strong> from this device.<br><br>Make sure you have exported first!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#c0392b',
+            cancelButtonColor: '#1a6b45',
+            confirmButtonText: '<i class="fa-solid fa-rotate-left"></i> Yes, Reset',
+            cancelButtonText: 'Cancel'
+        }).then(result => {
+            if (result.isConfirmed) {
+                try {
+                    const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
+                    delete logs[TODAY];
+                    _origSetItem('issued_logs', JSON.stringify(logs));
+                } catch(e) {}
+                updateStats();
+                renderRecentIssues();
+                Swal.fire({ icon: 'success', title: 'Reset!', text: "Today's issue data has been cleared.", timer: 1800, showConfirmButton: false });
+            }
         });
     }
+    window.resetIssuedLogs = resetIssuedLogs;
 
-    // ── Reset today logs ────────────────────────────────────────
-    function resetIssuedLogs(){
-        _origSwalFire({
-            title:"Reset Today's Data?",
-            html:'This will clear all issue records for <strong>'+getToday()+'</strong>.<br>Make sure you exported first!',
-            icon:'warning',showCancelButton:true,
-            confirmButtonColor:'#c0392b',cancelButtonColor:'#1a6b45',
-            confirmButtonText:'Yes, Reset',cancelButtonText:'Cancel'
-        }).then(function(r){
-            if(!r.isConfirmed) return;
-            try{
-                var logs=JSON.parse(localStorage.getItem('issued_logs')||'{}');
-                delete logs[getToday()];
-                _origSetItem('issued_logs',JSON.stringify(logs));
-            }catch(e){}
-            updateStats(); renderRecentIssues();
-            _origSwalFire({icon:'success',title:'Reset!',text:"Today's issue data cleared.",timer:1800,showConfirmButton:false});
-        });
-    }
-    window.resetIssuedLogs=resetIssuedLogs;
-    window.refreshRecentIssues=function(){ updateStats(); renderRecentIssues(); };
+    /* ── Membership code auto-format (PR/001/1/O/G style) ─────────
+       Pattern: 2 letters / 3 digits / 1 digit / 1 letter / 1 letter
+       e.g. typing PR0011OG  →  PR/001/1/O/G
+    ─────────────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', () => {
+        const inp = document.getElementById('manual-id-input');
+        if (!inp) return;
 
-    // ── Midnight rollover ───────────────────────────────────────
-    (function(){
-        var _loadedDate=getToday();
-        setInterval(function(){
-            if(getToday()!==_loadedDate){
-                _origSwalFire({icon:'info',title:'New Day',
-                    html:'Date changed to <strong>'+getToday()+'</strong>. Reloading.',
-                    timer:4000,timerProgressBar:true,showConfirmButton:false
-                }).then(function(){ location.reload(); });
-            }
-        },30000);
-    })();
+        // Segment rules: [maxLength, type]  type: 'alpha'|'digit'|'any'
+        const SEGMENTS = [
+            { len: 2, type: 'alpha'  },  // PR
+            { len: 3, type: 'digit'  },  // 001
+            { len: 1, type: 'digit'  },  // 1
+            { len: 1, type: 'alpha'  },  // O
+            { len: 1, type: 'alpha'  },  // G
+        ];
 
-    // ── Manual lookup ───────────────────────────────────────────
-    var manualInput=document.getElementById('manual-id-input');
-    var manualBtn=document.getElementById('btn-manual-lookup');
-    if(manualInput&&manualBtn){
-        function doManualIssue(){
-            var val=(manualInput.value||'').trim();
-            if(!val){ Swal.fire({icon:'warning',title:'Enter ID',text:'Type a membership number first.',timer:1800,showConfirmButton:false}); return; }
-            if(typeof handleDistributionScan==='function'){
-                isProcessingScan=false; handleDistributionScan(val); manualInput.value='';
-            } else {
-                Swal.fire({icon:'error',title:'Not Ready',text:'App not loaded yet.',timer:1800,showConfirmButton:false});
-            }
+        function charAllowed(ch, type) {
+            if (type === 'alpha') return /[A-Z]/.test(ch);
+            if (type === 'digit') return /[0-9]/.test(ch);
+            return true;
         }
-        manualBtn.addEventListener('click',doManualIssue);
-        manualInput.addEventListener('keydown',function(e){ if(e.key==='Enter') doManualIssue(); });
-    }
 
-    // ── Membership formatter PR/001/1/O/G ───────────────────────
-    if(manualInput){
-        var SEGMENTS=[{len:2,type:'alpha'},{len:3,type:'digit'},{len:1,type:'digit'},{len:1,type:'alpha'},{len:1,type:'alpha'}];
-        function charOK(ch,type){ return type==='alpha'?/[A-Z]/.test(ch):type==='digit'?/[0-9]/.test(ch):true; }
-        function formatCode(raw){
-            var clean=raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
-            var result='',pos=0;
-            for(var s=0;s<SEGMENTS.length&&pos<clean.length;s++){
-                var seg=SEGMENTS[s];
-                if(s>0) result+='/';
-                var chunk='';
-                while(chunk.length<seg.len&&pos<clean.length){ var ch=clean[pos++]; if(charOK(ch,seg.type)) chunk+=ch; }
-                result+=chunk;
+        function formatCode(raw) {
+            // Strip slashes and uppercase
+            const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            let result = '';
+            let pos = 0;
+            for (let s = 0; s < SEGMENTS.length && pos < clean.length; s++) {
+                const seg = SEGMENTS[s];
+                if (s > 0) result += '/';
+                let chunk = '';
+                while (chunk.length < seg.len && pos < clean.length) {
+                    const ch = clean[pos];
+                    if (charAllowed(ch, seg.type)) {
+                        chunk += ch;
+                    }
+                    pos++;
+                }
+                result += chunk;
             }
             return result;
         }
-        manualInput.addEventListener('input',function(){
-            var rawBefore=this.value.slice(0,this.selectionStart).replace(/[^A-Z0-9]/gi,'').length;
-            this.value=formatCode(this.value);
-            var rawCount=0,newPos=0;
-            for(var i=0;i<this.value.length;i++){
-                if(this.value[i]!=='/') rawCount++;
-                newPos=i+1;
-                if(rawCount>=rawBefore) break;
+
+        inp.addEventListener('input', function() {
+            const sel = this.selectionStart;
+            const rawBefore = this.value.slice(0, sel).replace(/[^A-Z0-9]/gi, '').length;
+            this.value = formatCode(this.value);
+            // Restore cursor to end of the clean chars typed so far
+            let rawCount = 0, newPos = 0;
+            for (let i = 0; i < this.value.length; i++) {
+                if (this.value[i] !== '/') rawCount++;
+                if (rawCount >= rawBefore) { newPos = i + 1; break; }
+                newPos = i + 1;
             }
-            this.setSelectionRange(newPos,newPos);
+            this.setSelectionRange(newPos, newPos);
         });
-    }
+    });
     </script>
 </body>
 </html>

@@ -439,188 +439,207 @@
     <script src="app.js"></script>
 
     <script>
-    /* Dashboard UI extensions — runs after app.js */
+    /* ── Dashboard UI extensions ───────────────────────────────────
+       app.js handles: stat-registered, stat-issued-today, stat-portions
+       We enhance with: avg size, progress bar, hourly chart,
+       family size breakdown, today's log list, live clock.
+    ─────────────────────────────────────────────────────────────── */
 
-    // ── Local date ──────────────────────────────────────────────
-    function getToday(){
-        var d=new Date();
-        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    function getToday() { return new Date().toISOString().split('T')[0]; }
+
+    function getTodayIssued() {
+        try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[getToday()] || {}; } catch(e) { return {}; }
     }
-    function getTodayIssued(){
-        try{ return JSON.parse(localStorage.getItem('issued_logs')||'{}')[getToday()]||{}; }
-        catch(e){ return {}; }
-    }
-    function getPending(){
-        try{ return JSON.parse(localStorage.getItem('registered_families')||'{}'); }
-        catch(e){ return {}; }
-    }
-    function initials(name){
-        if(!name) return '?';
-        var p=name.trim().split(/\s+/);
-        return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():name.slice(0,2).toUpperCase();
+    function getPending() {
+        try { return JSON.parse(localStorage.getItem('registered_families') || '{}'); } catch(e) { return {}; }
     }
 
-    // ── Live clock ──────────────────────────────────────────────
-    function updateClock(){
-        var now=new Date();
-        var dateEl=document.getElementById('nav-date-display');
-        var timeEl=document.getElementById('nav-time-display');
-        if(dateEl) dateEl.textContent=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
-        if(timeEl) timeEl.textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    function initials(name) {
+        if (!name) return '?';
+        const p = name.trim().split(/\s+/);
+        return p.length >= 2 ? (p[0][0] + p[p.length-1][0]).toUpperCase() : name.slice(0,2).toUpperCase();
+    }
+
+    /* ── Live clock ─────────────────────────────────────────────── */
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('nav-date-display').textContent =
+            now.toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+        document.getElementById('nav-time-display').textContent =
+            now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
     }
     updateClock();
-    setInterval(updateClock,1000);
+    setInterval(updateClock, 1000);
 
-    // ── Full dashboard build ────────────────────────────────────
-    function buildDashboard(){
-        var issued=getTodayIssued();
-        var pending=getPending();
-        var entries=Object.values(issued);
-        var pendingCount=Object.keys(pending).length;
+    /* ── Extended dashboard ─────────────────────────────────────── */
+    function buildDashboard() {
+        const issued  = getTodayIssued();
+        const pending = getPending();
+        const entries = Object.values(issued);
+        const pendingCount = Object.keys(pending).length;
 
         // Avg family size
-        var avgSize=entries.length?(entries.reduce(function(s,e){return s+(e.count||0);},0)/entries.length).toFixed(1):'0';
-        var avgEl=document.getElementById('stat-avg-size');
-        if(avgEl) avgEl.textContent=avgSize;
+        const avgSize = entries.length
+            ? (entries.reduce((s,e) => s + (e.count||0), 0) / entries.length).toFixed(1)
+            : '0';
+        document.getElementById('stat-avg-size').textContent = avgSize;
 
-        // Progress bar
-        var issuedCount=entries.length;
-        var totalReg=pendingCount+issuedCount;
-        var pct=totalReg>0?Math.round((issuedCount/totalReg)*100):0;
-        var piEl=document.getElementById('prog-issued'); if(piEl) piEl.textContent=issuedCount;
-        var ptEl=document.getElementById('prog-total');  if(ptEl) ptEl.textContent=totalReg;
-        var ppEl=document.getElementById('prog-pct');    if(ppEl) ppEl.textContent=pct+'%';
-        var pbEl=document.getElementById('prog-bar');    if(pbEl) pbEl.style.width=pct+'%';
+        // Distribution progress (issued vs pending registered)
+        const issuedCount = entries.length;
+        const totalRegistered = pendingCount + issuedCount; // rough total shown
+        const pct = totalRegistered > 0 ? Math.round((issuedCount / totalRegistered) * 100) : 0;
+        document.getElementById('prog-issued').textContent = issuedCount;
+        document.getElementById('prog-total').textContent = totalRegistered;
+        document.getElementById('prog-pct').textContent = pct + '%';
+        document.getElementById('prog-bar').style.width = pct + '%';
 
+        // Hourly activity chart
         buildHourlyChart(issued);
+
+        // Family size breakdown
         buildSizeBreakdown(issued);
+
+        // Today's log
         buildTodayLog(issued);
     }
 
-    // ── Parse time string to 24h hour int ──────────────────────
-    // Handles "14:35:10" and "2:35:10 PM" / "2:35:10 pm"
-    function parseHour(t){
-        if(!t) return null;
-        var upper=t.toUpperCase();
-        var clean=t.replace(/\s*(AM|PM)/i,'');
-        var h=parseInt(clean.split(':')[0]);
-        if(isNaN(h)) return null;
-        if(upper.indexOf('PM')>-1&&h!==12) h+=12;
-        if(upper.indexOf('AM')>-1&&h===12) h=0;
+    /* ── Hourly chart ───────────────────────────────────────────── */
+    function parseHour(timeStr) {
+        // Handles "14:35:10" (24h) AND "2:35:10 PM" / "2:35:10 pm" (12h locale strings)
+        if (!timeStr) return null;
+        const upper = timeStr.toUpperCase();
+        const parts  = timeStr.replace(/\s*(AM|PM)/i, '').split(':');
+        let h = parseInt(parts[0]);
+        if (isNaN(h)) return null;
+        if (upper.includes('PM') && h !== 12) h += 12;
+        if (upper.includes('AM') && h === 12) h = 0;
         return h;
     }
 
-    // ── Hourly chart ────────────────────────────────────────────
-    function buildHourlyChart(issued){
-        var wrap=document.getElementById('hourly-chart-wrap');
-        if(!wrap) return;
-        var hours={};
-        for(var h=5;h<=23;h++) hours[h]=0;
+    function buildHourlyChart(issued) {
+        const wrap = document.getElementById('hourly-chart-wrap');
+        // Bucket issues into hours 5..22
+        const hours = {};
+        for (let h = 5; h <= 22; h++) hours[h] = 0;
 
-        Object.values(issued).forEach(function(e){
-            var h=parseHour(e.time);
-            if(h===null) return;
-            var bucket=Math.min(Math.max(h,5),23);
+        Object.values(issued).forEach(e => {
+            const h = parseHour(e.time);
+            if (h === null) return;
+            const bucket = Math.min(Math.max(h, 5), 22);
             hours[bucket]++;
         });
 
-        var vals=Object.values(hours);
-        var maxVal=Math.max.apply(null,vals.concat([1]));
+        const vals = Object.values(hours);
+        const maxVal = Math.max(...vals, 1);
 
-        if(vals.every(function(v){return v===0;})){
-            wrap.innerHTML='<div class="chart-empty"><i class="fa-solid fa-chart-bar"></i>No activity recorded today yet.</div>';
+        if (vals.every(v => v === 0)) {
+            wrap.innerHTML = '<div class="chart-empty"><i class="fa-solid fa-chart-bar"></i>No activity recorded today yet.</div>';
             return;
         }
 
-        var peakH=5;
-        Object.keys(hours).forEach(function(k){ if(hours[k]>hours[peakH]) peakH=parseInt(k); });
+        const peakH = Object.entries(hours).sort((a,b)=>b[1]-a[1])[0][0];
 
-        var html='<div class="hour-chart">';
-        for(var h2=5;h2<=23;h2++){
-            var v=hours[h2];
-            var pct=Math.round((v/maxVal)*100);
-            var isPeak=(h2===peakH&&v>0);
-            var label=h2<12?h2+'a':h2===12?'12p':(h2-12)+'p';
-            html+='<div class="hour-bar-wrap">'+
-                '<div class="hour-bar'+(isPeak?' peak':'')+'" style="height:'+Math.max(pct,2)+'%" title="'+v+' at '+label+'"></div>'+
-                '<div class="hour-label">'+label+'</div>'+
-            '</div>';
+        let html = '<div class="hour-chart">';
+        for (let h = 5; h <= 22; h++) {
+            const v = hours[h];
+            const pct = Math.round((v / maxVal) * 100);
+            const isPeak = String(h) === String(peakH) && v > 0;
+            const label = h < 12 ? h+'a' : h === 12 ? '12p' : (h-12)+'p';
+            html += `<div class="hour-bar-wrap">
+                <div class="hour-bar${isPeak ? ' peak' : ''}" style="height:${Math.max(pct,2)}%" title="${v} issues at ${label}"></div>
+                <div class="hour-label">${label}</div>
+            </div>`;
         }
-        html+='</div>';
-        var peakLabel=peakH<12?peakH+'am':peakH===12?'12pm':(peakH-12)+'pm';
-        html+='<div style="text-align:right;font-size:.7rem;color:var(--muted);margin-top:6px;">'+
-            '<i class="fa-solid fa-bolt" style="color:var(--gold);font-size:.65rem"></i> '+
-            'Peak: <strong style="color:var(--ink)">'+peakLabel+'</strong> with '+hours[peakH]+' issues</div>';
-        wrap.innerHTML=html;
+        html += '</div>';
+        // Peak annotation
+        if (maxVal > 0) {
+            const peakLabel = parseInt(peakH) < 12 ? peakH+'am' : parseInt(peakH) === 12 ? '12pm' : (parseInt(peakH)-12)+'pm';
+            html += `<div style="text-align:right;font-size:.7rem;color:var(--muted);margin-top:6px;">
+                <i class="fa-solid fa-bolt" style="color:var(--gold);font-size:.65rem"></i>
+                Peak: <strong style="color:var(--ink)">${peakLabel}</strong> with ${hours[peakH]} issues
+            </div>`;
+        }
+        wrap.innerHTML = html;
     }
 
-    // ── Family size breakdown ───────────────────────────────────
-    function buildSizeBreakdown(issued){
-        var el=document.getElementById('size-breakdown');
-        if(!el) return;
-        var buckets={};
-        Object.values(issued).forEach(function(e){ var c=e.count||1; buckets[c]=(buckets[c]||0)+1; });
-        if(!Object.keys(buckets).length){
-            el.innerHTML='<li><div class="empty-state" style="padding:12px"><i class="fa-solid fa-users"></i><p>No data yet</p></div></li>';
+    /* ── Family size breakdown ──────────────────────────────────── */
+    function buildSizeBreakdown(issued) {
+        const el = document.getElementById('size-breakdown');
+        const buckets = {};
+        Object.values(issued).forEach(e => {
+            const c = e.count || 1;
+            buckets[c] = (buckets[c] || 0) + 1;
+        });
+
+        if (!Object.keys(buckets).length) {
+            el.innerHTML = '<li><div class="empty-state" style="padding:12px"><i class="fa-solid fa-users"></i><p>No data yet</p></div></li>';
             return;
         }
-        var sorted=Object.keys(buckets).map(Number).sort(function(a,b){return a-b;});
-        var maxB=Math.max.apply(null,Object.values(buckets));
-        el.innerHTML=sorted.map(function(size){
-            var count=buckets[size];
-            var pct=Math.round((count/maxB)*100);
-            var label=size+(size===1?' member':' members');
-            return '<li class="breakdown-item">'+
-                '<div class="breakdown-label">'+label+'</div>'+
-                '<div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+pct+'%"></div></div>'+
-                '<div class="breakdown-count">'+count+'</div>'+
-            '</li>';
+
+        const sorted = Object.entries(buckets).sort((a,b) => parseInt(a[0])-parseInt(b[0]));
+        const maxB = Math.max(...Object.values(buckets), 1);
+
+        el.innerHTML = sorted.map(([size, count]) => {
+            const pct = Math.round((count/maxB)*100);
+            const label = size + (parseInt(size)===1 ? ' member' : ' members');
+            return `<li class="breakdown-item">
+                <div class="breakdown-label">${label}</div>
+                <div class="breakdown-bar-track">
+                    <div class="breakdown-bar-fill" style="width:${pct}%"></div>
+                </div>
+                <div class="breakdown-count">${count}</div>
+            </li>`;
         }).join('');
     }
 
-    // ── Today log ───────────────────────────────────────────────
-    function buildTodayLog(issued){
-        var ul=document.getElementById('today-log-list');
-        if(!ul) return;
-        var entries=Object.entries(issued);
-        if(!entries.length){
-            ul.innerHTML='<li><div class="empty-state"><i class="fa-solid fa-bowl-food"></i><p>No issues recorded today.</p></div></li>';
+    /* ── Today's log list ───────────────────────────────────────── */
+    function buildTodayLog(issued) {
+        const ul = document.getElementById('today-log-list');
+        const entries = Object.entries(issued);
+
+        if (!entries.length) {
+            ul.innerHTML = '<li><div class="empty-state"><i class="fa-solid fa-bowl-food"></i><p>No issues recorded today.</p></div></li>';
             return;
         }
-        ul.innerHTML=entries.slice().reverse().slice(0,50).map(function(pair){
-            var id=pair[0],r=pair[1];
-            return '<li class="log-item">'+
-                '<div class="log-avatar">'+initials(r.name||'')+'</div>'+
-                '<div style="flex:1;min-width:0">'+
-                    '<div class="log-name">'+(r.name||'Unknown')+'</div>'+
-                    '<div class="log-time"><i class="fa-regular fa-clock" style="font-size:.6rem"></i> '+(r.time||'')+'&nbsp;·&nbsp;'+id+'</div>'+
-                '</div>'+
-                '<div class="log-badge"><i class="fa-solid fa-bowl-food" style="font-size:.65rem;margin-right:2px"></i>'+(r.count||1)+'</div>'+
-            '</li>';
-        }).join('');
+
+        ul.innerHTML = entries.slice().reverse().slice(0, 50).map(([id, r]) =>
+            `<li class="log-item">
+                <div class="log-avatar">${initials(r.name||'')}</div>
+                <div style="flex:1;min-width:0">
+                    <div class="log-name">${r.name||'Unknown'}</div>
+                    <div class="log-time"><i class="fa-regular fa-clock" style="font-size:.6rem"></i> ${r.time||''} &nbsp;·&nbsp; ${id}</div>
+                </div>
+                <div class="log-badge"><i class="fa-solid fa-bowl-food" style="font-size:.65rem;margin-right:2px"></i>${r.count||1}</div>
+            </li>`
+        ).join('');
     }
 
-    // ── Run immediately ─────────────────────────────────────────
-    buildDashboard();
+    /* ── Run on load ────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', buildDashboard);
 
-    // ── Patch localStorage ──────────────────────────────────────
-    var _origSetItem=localStorage.setItem.bind(localStorage);
-    localStorage.setItem=function(key,value){
-        _origSetItem(key,value);
-        if(key==='issued_logs'||key==='registered_families'){
-            if(typeof initDashboard==='function') initDashboard();
+
+    /* ── Midnight rollover detector ────────────────────────────────
+       Reloads the dashboard when the date changes so stats reset.
+    ─────────────────────────────────────────────────────────────── */
+    (function() {
+        const _loadedDate = getToday();
+        setInterval(() => {
+            if (getToday() !== _loadedDate) location.reload();
+        }, 30000);
+    })();
+
+    /* ── Patch localStorage to auto-refresh when app.js writes ───── */
+    const _origSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = function(key, value) {
+        _origSetItem(key, value);
+        if (key === 'issued_logs' || key === 'registered_families') {
+            if (typeof initDashboard === 'function') initDashboard();
             buildDashboard();
         }
     };
 
-    // ── Poll every 3s as fallback ───────────────────────────────
-    setInterval(buildDashboard,3000);
-
-    // ── Midnight rollover ───────────────────────────────────────
-    (function(){
-        var _loadedDate=getToday();
-        setInterval(function(){ if(getToday()!==_loadedDate) location.reload(); },30000);
-    })();
+    /* ── Polling fallback every 3s in case same-tab patch is bypassed */
+    setInterval(buildDashboard, 3000);
     </script>
 
 </body>
