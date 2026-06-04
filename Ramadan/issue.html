@@ -505,12 +505,17 @@
        Structure: { "2025-06-01": { "FAM001": {name, count, time}, ... } }
     ─────────────────────────────────────────────────────────────── */
 
-    const TODAY = new Date().toISOString().split('T')[0];
+    function getToday() {
+        var d = new Date();
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
 
     function getTodayData() {
         try {
             const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
-            return logs[TODAY] || {};
+            return logs[getToday()] || {};
         } catch(e) { return {}; }
     }
 
@@ -586,45 +591,34 @@
         }
     };
 
-    /* ── Also patch the modal show to restart the bar animation ── */
-    // app.js calls issueModalInstance.show() — we hook into the modal shown event
-    document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
-        // Restart the shrink bar animation by replacing the element
-        const bar = document.getElementById('modal-bar-fill');
-        if (bar) {
-            bar.style.animation = 'none';
-            bar.offsetHeight; // reflow
-            bar.style.animation = '';
-        }
-        // Show current time in modal
-        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const timeEl = document.getElementById('dist-time');
-        if (timeEl) timeEl.textContent = now;
+    // Single issueModal show listener: animation + time + sound
+    document.getElementById('issueModal').addEventListener('show.bs.modal', function() {
+        var bar = document.getElementById('modal-bar-fill');
+        if (bar) { bar.style.animation = 'none'; bar.offsetHeight; bar.style.animation = ''; }
+        var timeEl = document.getElementById('dist-time');
+        if (timeEl) timeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        var countEl = document.getElementById('dist-count');
+        var count = countEl ? (parseInt(countEl.textContent) || 0) : 0;
+        if (count > 0) playSoundForCount(count);
     });
 
-    /* ── Manual Lookup ─────────────────────────────────────────── */
-    document.addEventListener('DOMContentLoaded', () => {
-        const manualInput = document.getElementById('manual-id-input');
-        const manualBtn   = document.getElementById('btn-manual-lookup');
-
+    /* ── Manual Lookup — direct (DOM ready at bottom of body) ─── */
+    (function() {
+        var manualInput = document.getElementById('manual-id-input');
+        var manualBtn   = document.getElementById('btn-manual-lookup');
+        if (!manualInput || !manualBtn) return;
         function doManualIssue() {
-            const val = (manualInput.value || '').trim();
-            if (!val) {
-                Swal.fire({ icon: 'warning', title: 'Enter ID', text: 'Please type a membership number first.', timer: 1800, showConfirmButton: false });
-                return;
-            }
+            var val = (manualInput.value || '').trim();
+            if (!val) { Swal.fire({ icon: 'warning', title: 'Enter ID', text: 'Please type a membership number first.', timer: 1800, showConfirmButton: false }); return; }
             if (typeof handleDistributionScan === 'function') {
-                isProcessingScan = false;
-                handleDistributionScan(val);
-                manualInput.value = '';
+                isProcessingScan = false; handleDistributionScan(val); manualInput.value = '';
             } else {
                 Swal.fire({ icon: 'error', title: 'Not Ready', text: 'App not fully loaded yet.', timer: 1800, showConfirmButton: false });
             }
         }
-
         manualBtn.addEventListener('click', doManualIssue);
-        manualInput.addEventListener('keydown', e => { if (e.key === 'Enter') doManualIssue(); });
-    });
+        manualInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doManualIssue(); });
+    })();
 
     window.refreshRecentIssues = function() { updateStats(); renderRecentIssues(); };
 
@@ -670,11 +664,7 @@
        and patch Swal.fire to detect warning/error toasts.
     ─────────────────────────────────────────────────────────────── */
 
-    // Success: hook issueModal show event — read the count from the DOM
-    document.getElementById('issueModal').addEventListener('show.bs.modal', () => {
-        const count = parseInt(document.getElementById('dist-count').textContent) || 0;
-        if (count > 0) playSoundForCount(count);
-    });
+
 
     // Duplicate / Not-found: patch Swal.fire to intercept known titles
     const _origSwalFire = Swal.fire.bind(Swal);
@@ -699,7 +689,7 @@
     function resetIssuedLogs() {
         Swal.fire({
             title: 'Reset Today\'s Data?',
-            html: 'This will clear all issue records for <strong>' + TODAY + '</strong> from this device.<br><br>Make sure you have exported first!',
+            html: 'This will clear all issue records for <strong>' + getToday() + '</strong> from this device.<br><br>Make sure you have exported first!',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#c0392b',
@@ -710,7 +700,7 @@
             if (result.isConfirmed) {
                 try {
                     const logs = JSON.parse(localStorage.getItem('issued_logs') || '{}');
-                    delete logs[TODAY];
+                    delete logs[getToday()];
                     _origSetItem('issued_logs', JSON.stringify(logs));
                 } catch(e) {}
                 updateStats();
@@ -725,8 +715,8 @@
        Pattern: 2 letters / 3 digits / 1 digit / 1 letter / 1 letter
        e.g. typing PR0011OG  →  PR/001/1/O/G
     ─────────────────────────────────────────────────────────────── */
-    document.addEventListener('DOMContentLoaded', () => {
-        const inp = document.getElementById('manual-id-input');
+    (function() {
+        var inp = document.getElementById('manual-id-input');
         if (!inp) return;
 
         // Segment rules: [maxLength, type]  type: 'alpha'|'digit'|'any'
@@ -778,7 +768,20 @@
             }
             this.setSelectionRange(newPos, newPos);
         });
-    });
+    })();
+
+    /* ── Midnight rollover: reload page when date changes ─────── */
+    (function() {
+        var _loadedDate = getToday();
+        setInterval(function() {
+            if (getToday() !== _loadedDate) {
+                Swal.fire({ icon: 'info', title: 'New Day Started',
+                    html: 'Date changed to <strong>' + getToday() + '</strong>.<br>Reloading for fresh data.',
+                    timer: 3000, timerProgressBar: true, showConfirmButton: false
+                }).then(function() { location.reload(); });
+            }
+        }, 30000);
+    })();
     </script>
 </body>
 </html>

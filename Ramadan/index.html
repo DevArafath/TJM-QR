@@ -445,7 +445,12 @@
        family size breakdown, today's log list, live clock.
     ─────────────────────────────────────────────────────────────── */
 
-    function getToday() { return new Date().toISOString().split('T')[0]; }
+    function getToday() {
+        var d = new Date();
+        return d.getFullYear() + '-' +
+               String(d.getMonth() + 1).padStart(2, '0') + '-' +
+               String(d.getDate()).padStart(2, '0');
+    }
 
     function getTodayIssued() {
         try { return JSON.parse(localStorage.getItem('issued_logs') || '{}')[getToday()] || {}; } catch(e) { return {}; }
@@ -471,6 +476,24 @@
     updateClock();
     setInterval(updateClock, 1000);
 
+    /* ── Fetch registered.json total (cached) ──────────────────── */
+    var _regTotal = null;
+    function getRegisteredTotal(cb) {
+        if (_regTotal !== null) { cb(_regTotal); return; }
+        fetch('registered.json')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                _regTotal = Array.isArray(data) ? data.length : Object.keys(data).length;
+                cb(_regTotal);
+            })
+            .catch(function() {
+                // Fallback: count from registeredDB global if available
+                _regTotal = (typeof registeredDB !== 'undefined' && registeredDB.length)
+                    ? registeredDB.length : 0;
+                cb(_regTotal);
+            });
+    }
+
     /* ── Extended dashboard ─────────────────────────────────────── */
     function buildDashboard() {
         const issued  = getTodayIssued();
@@ -484,14 +507,16 @@
             : '0';
         document.getElementById('stat-avg-size').textContent = avgSize;
 
-        // Distribution progress (issued vs pending registered)
+        // Distribution progress — total from registered.json
         const issuedCount = entries.length;
-        const totalRegistered = pendingCount + issuedCount; // rough total shown
-        const pct = totalRegistered > 0 ? Math.round((issuedCount / totalRegistered) * 100) : 0;
         document.getElementById('prog-issued').textContent = issuedCount;
-        document.getElementById('prog-total').textContent = totalRegistered;
-        document.getElementById('prog-pct').textContent = pct + '%';
-        document.getElementById('prog-bar').style.width = pct + '%';
+        // Fetch registered.json to get true total (cached after first load)
+        getRegisteredTotal(function(total) {
+            var pct = total > 0 ? Math.round((issuedCount / total) * 100) : 0;
+            document.getElementById('prog-total').textContent = total;
+            document.getElementById('prog-pct').textContent = pct + '%';
+            document.getElementById('prog-bar').style.width = Math.min(pct, 100) + '%';
+        });
 
         // Hourly activity chart
         buildHourlyChart(issued);
@@ -518,14 +543,14 @@
 
     function buildHourlyChart(issued) {
         const wrap = document.getElementById('hourly-chart-wrap');
-        // Bucket issues into hours 5..22
+        // All 24 hours
         const hours = {};
-        for (let h = 5; h <= 22; h++) hours[h] = 0;
+        for (let h = 0; h <= 23; h++) hours[h] = 0;
 
         Object.values(issued).forEach(e => {
             const h = parseHour(e.time);
             if (h === null) return;
-            const bucket = Math.min(Math.max(h, 5), 22);
+            const bucket = Math.min(Math.max(h, 0), 23);
             hours[bucket]++;
         });
 
@@ -540,11 +565,11 @@
         const peakH = Object.entries(hours).sort((a,b)=>b[1]-a[1])[0][0];
 
         let html = '<div class="hour-chart">';
-        for (let h = 5; h <= 22; h++) {
+        for (let h = 0; h <= 23; h++) {
             const v = hours[h];
             const pct = Math.round((v / maxVal) * 100);
             const isPeak = String(h) === String(peakH) && v > 0;
-            const label = h < 12 ? h+'a' : h === 12 ? '12p' : (h-12)+'p';
+            const label = h === 0 ? '12a' : h < 12 ? h+'a' : h === 12 ? '12p' : (h-12)+'p';
             html += `<div class="hour-bar-wrap">
                 <div class="hour-bar${isPeak ? ' peak' : ''}" style="height:${Math.max(pct,2)}%" title="${v} issues at ${label}"></div>
                 <div class="hour-label">${label}</div>
@@ -553,7 +578,7 @@
         html += '</div>';
         // Peak annotation
         if (maxVal > 0) {
-            const peakLabel = parseInt(peakH) < 12 ? peakH+'am' : parseInt(peakH) === 12 ? '12pm' : (parseInt(peakH)-12)+'pm';
+            const ph = parseInt(peakH); const peakLabel = ph === 0 ? '12am' : ph < 12 ? ph+'am' : ph === 12 ? '12pm' : (ph-12)+'pm';
             html += `<div style="text-align:right;font-size:.7rem;color:var(--muted);margin-top:6px;">
                 <i class="fa-solid fa-bolt" style="color:var(--gold);font-size:.65rem"></i>
                 Peak: <strong style="color:var(--ink)">${peakLabel}</strong> with ${hours[peakH]} issues
@@ -614,8 +639,8 @@
         ).join('');
     }
 
-    /* ── Run on load ────────────────────────────────────────────── */
-    document.addEventListener('DOMContentLoaded', buildDashboard);
+    /* ── Run immediately — DOM ready since script is at bottom of body */
+    buildDashboard();
 
 
     /* ── Midnight rollover detector ────────────────────────────────
